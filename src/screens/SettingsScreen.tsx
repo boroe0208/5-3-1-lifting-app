@@ -23,29 +23,27 @@ export const SettingsScreen = ({ navigation }: any) => {
     }, [theme]);
 
     const loadSettings = async () => {
-        const p = await Storage.getProfile();
-        if (p) {
-            setProfile(p);
-            setTmPercentage(p.settings.trainingMaxPercentage.toString());
-            setRounding(p.settings.rounding.toString());
+        const userProfile = await Storage.getProfile();
+        if (userProfile) {
+            setProfile(userProfile);
+            setTmPercentage(userProfile.settings.trainingMaxPercentage.toString());
+            setRounding(userProfile.settings.rounding.toString());
         }
     };
 
     const saveSettings = async () => {
         if (!profile) return;
-
         const newSettings = {
             ...profile.settings,
             trainingMaxPercentage: parseFloat(tmPercentage),
             rounding: parseFloat(rounding),
         };
-
-        await Storage.saveProfile({
+        const newProfile = {
             ...profile,
             settings: newSettings,
-        });
-
-        Alert.alert('Success', 'Settings saved!');
+        };
+        setProfile(newProfile);
+        await Storage.saveProfile(newProfile);
     };
 
     const exportHistory = async () => {
@@ -138,7 +136,6 @@ export const SettingsScreen = ({ navigation }: any) => {
                     onPress: async () => {
                         await Storage.resetProgress();
                         Alert.alert('Success', 'Cycle progress has been reset to 1/1. 1RMs and History are preserved.');
-                        // Force reload settings to reflect changes if needed, or just let user navigate
                         loadSettings();
                     }
                 },
@@ -170,6 +167,15 @@ export const SettingsScreen = ({ navigation }: any) => {
         );
     };
 
+    const handleAssistanceChange = async (template: 'None' | 'BoringButBig' | 'Custom') => {
+        const profile = await Storage.getProfile();
+        if (profile) {
+            profile.assistanceTemplate = template;
+            await Storage.saveProfile(profile);
+            loadSettings();
+        }
+    };
+
     if (!profile) return (
         <View style={[styles.container, { backgroundColor: theme.colors.background, justifyContent: 'center', alignItems: 'center' }]}>
             <Text style={{ color: theme.colors.text }}>Loading...</Text>
@@ -178,30 +184,73 @@ export const SettingsScreen = ({ navigation }: any) => {
 
     return (
         <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-            <View style={styles.section}>
-                <Text style={[styles.label, { color: theme.colors.text }]}>Training Max %</Text>
-                <TextInput
-                    style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.inputBackground }]}
-                    value={tmPercentage}
-                    onChangeText={setTmPercentage}
-                    keyboardType="numeric"
-                />
-                <Text style={[styles.helpText, { color: theme.colors.subtext }]}>Percentage of 1RM to use as Training Max (default 0.9)</Text>
+            <View style={[styles.section, { backgroundColor: theme.colors.card }, theme.shadow]}>
+                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Training Max</Text>
+                <Text style={[styles.label, { color: theme.colors.subtext }]}>Percentage of 1RM to use as Training Max</Text>
+                <View style={styles.row}>
+                    <TextInput
+                        style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.border }]}
+                        keyboardType="numeric"
+                        value={tmPercentage}
+                        onChangeText={setTmPercentage}
+                        onBlur={saveSettings}
+                    />
+                    <Text style={[styles.unit, { color: theme.colors.text }]}>%</Text>
+                </View>
             </View>
 
-            <View style={styles.section}>
-                <Text style={[styles.label, { color: theme.colors.text }]}>Rounding</Text>
-                <TextInput
-                    style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.inputBackground }]}
-                    value={rounding}
-                    onChangeText={setRounding}
-                    keyboardType="numeric"
-                />
-                <Text style={[styles.helpText, { color: theme.colors.subtext }]}>Round weights to nearest (e.g. 2.5 or 5)</Text>
+            <View style={[styles.section, { backgroundColor: theme.colors.card }, theme.shadow]}>
+                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Assistance Work</Text>
+                <Text style={[styles.label, { color: theme.colors.subtext }]}>Choose your accessory work template</Text>
+                <View style={styles.row}>
+                    {['None', 'BoringButBig', 'Custom'].map((template) => (
+                        <TouchableOpacity
+                            key={template}
+                            style={[
+                                styles.optionButton,
+                                profile.assistanceTemplate === template && { backgroundColor: theme.colors.primary },
+                                { borderColor: theme.colors.border }
+                            ]}
+                            onPress={() => handleAssistanceChange(template as any)}
+                        >
+                            <Text style={[
+                                styles.optionText,
+                                profile.assistanceTemplate === template ? { color: '#fff' } : { color: theme.colors.text }
+                            ]}>
+                                {template === 'BoringButBig' ? 'BBB' : template}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+                {profile.assistanceTemplate === 'BoringButBig' && (
+                    <Text style={[styles.infoText, { color: theme.colors.subtext }]}>
+                        Adds 5 sets of 10 reps of the main lift at 50% TM.
+                    </Text>
+                )}
+                {profile.assistanceTemplate === 'Custom' && (
+                    <Text style={[styles.infoText, { color: theme.colors.subtext }]}>
+                        Custom exercises can be configured in the workout screen (Coming Soon).
+                    </Text>
+                )}
             </View>
 
-            <View style={styles.section}>
-                <Text style={[styles.label, { color: theme.colors.text }]}>Theme</Text>
+            <View style={[styles.section, { backgroundColor: theme.colors.card }, theme.shadow]}>
+                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Rounding</Text>
+                <Text style={[styles.label, { color: theme.colors.subtext }]}>Round weights to nearest</Text>
+                <View style={styles.row}>
+                    <TextInput
+                        style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.border }]}
+                        keyboardType="numeric"
+                        value={rounding}
+                        onChangeText={setRounding}
+                        onBlur={saveSettings}
+                    />
+                    <Text style={[styles.unit, { color: theme.colors.text }]}>{profile.settings.unit}</Text>
+                </View>
+            </View>
+
+            <View style={[styles.section, { backgroundColor: theme.colors.card }, theme.shadow]}>
+                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Theme</Text>
                 <View style={styles.themeContainer}>
                     {Object.keys(THEMES).map((themeKey) => (
                         <TouchableOpacity
@@ -218,10 +267,6 @@ export const SettingsScreen = ({ navigation }: any) => {
                     ))}
                 </View>
             </View>
-
-            <TouchableOpacity style={[styles.saveButton, { backgroundColor: theme.colors.primary }]} onPress={saveSettings}>
-                <Text style={styles.saveButtonText}>Save Settings</Text>
-            </TouchableOpacity>
 
             <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
 
@@ -245,44 +290,6 @@ export const SettingsScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: 20,
-    },
-    section: {
-        marginBottom: 24,
-    },
-    label: {
-        fontSize: 18,
-        fontWeight: '600',
-        marginBottom: 8,
-    },
-    input: {
-        borderWidth: 1,
-        borderRadius: 12,
-        padding: 16,
-        fontSize: 18,
-    },
-    helpText: {
-        fontSize: 14,
-        marginTop: 8,
-    },
-    saveButton: {
-        padding: 18,
-        borderRadius: 16,
-        alignItems: 'center',
-        marginTop: 16,
-    },
-    saveButtonText: {
-        color: 'white',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    divider: {
-        height: 1,
-        marginVertical: 40,
-    },
-    sectionTitle: {
-        fontSize: 24,
-        fontWeight: '800',
         marginBottom: 20,
         letterSpacing: 0.5,
     },
@@ -322,5 +329,73 @@ const styles = StyleSheet.create({
         color: 'white',
         fontWeight: '700',
         fontSize: 16,
+    },
+    section: {
+        borderRadius: 24,
+        padding: 20,
+        marginBottom: 24,
+    },
+    sectionTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        marginBottom: 16,
+    },
+    label: {
+        fontSize: 14,
+        marginBottom: 12,
+    },
+    row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    input: {
+        borderWidth: 1,
+        borderRadius: 12,
+        padding: 12,
+        fontSize: 18,
+        width: 100,
+        textAlign: 'center',
+    },
+    unit: {
+        fontSize: 18,
+        fontWeight: '600',
+    },
+    divider: {
+        height: 1,
+        marginVertical: 24,
+    },
+    optionButton: {
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+        borderWidth: 1,
+    },
+    optionText: {
+        fontWeight: '600',
+    },
+    infoText: {
+        marginTop: 12,
+        fontSize: 14,
+        fontStyle: 'italic',
+    },
+    saveButton: {
+        padding: 18,
+        borderRadius: 16,
+        alignItems: 'center',
+        marginTop: 8,
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.30,
+        shadowRadius: 4.65,
+        elevation: 8,
+    },
+    saveButtonText: {
+        color: 'white',
+        fontSize: 18,
+        fontWeight: '700',
     },
 });

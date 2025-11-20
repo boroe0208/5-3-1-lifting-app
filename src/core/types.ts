@@ -26,6 +26,16 @@ export interface WorkoutSet {
     percentage?: number; // Target percentage of TM
 }
 
+export interface AssistanceExercise {
+    name: string;
+    sets: number;
+    reps: number;
+    weight?: number;
+    completed?: boolean;
+}
+
+export type AssistanceTemplate = 'None' | 'BoringButBig' | 'Custom';
+
 export interface WorkoutHistoryEntry {
     id: string;
     date: string;
@@ -35,7 +45,9 @@ export interface WorkoutHistoryEntry {
     cycle: number;
     week: number;
     sets: WorkoutSet[];
+    assistanceWork?: AssistanceExercise[];
     estimatedOneRepMaxes?: Partial<OneRepMaxes>;
+    duration?: number; // Duration in seconds
 }
 
 export interface UserProfile {
@@ -46,6 +58,8 @@ export interface UserProfile {
     completedWorkouts: string[]; // List of workout IDs (e.g., "week1_squat") completed in the current cycle
     settings: Settings;
     history: WorkoutHistoryEntry[];
+    assistanceTemplate?: AssistanceTemplate;
+    customAssistance?: Record<string, AssistanceExercise[]>; // Key: 'squat', 'bench', etc.
 }
 
 export interface Workout {

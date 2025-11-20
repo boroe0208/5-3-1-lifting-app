@@ -1,0 +1,59 @@
+FAIL __tests__/Storage.test.ts
+  Storage
+    getProfile
+      ΓêÜ returns null if no profile exists (2 ms)
+      ΓêÜ returns parsed profile if exists (1 ms)
+    saveProfile
+      ├ù saves profile to AsyncStorage (2 ms)
+    resetProgress
+      ΓêÜ resets cycle and week but keeps history and 1RMs (1 ms)
+    clearProfile
+      ├ù removes profile from AsyncStorage
+
+  ΓùÅ Storage ΓÇ║ saveProfile ΓÇ║ saves profile to AsyncStorage
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: "user_profile", "{\"oneRepMaxes\":{\"squat\":100,\"bench\":100,\"deadlift\":100,\"ohp\":100},\"currentCycle\":1,\"currentWeek\":1,\"liftProgress\":{\"squat\":{\"cycle\":1,\"week\":1},\"bench\":{\"cycle\":1,\"week\":1},\"deadlift\":{\"cycle\":1,\"week\":1},\"ohp\":{\"cycle\":1,\"week\":1}},\"completedWorkouts\":[],\"settings\":{\"trainingMaxPercentage\":0.9,\"rounding\":2.5,\"unit\":\"lb\",\"theme\":\"dark\"},\"history\":[]}"
+    Received: "wendler_531_profile", "{\"oneRepMaxes\":{\"squat\":100,\"bench\":100,\"deadlift\":100,\"ohp\":100},\"currentCycle\":1,\"currentWeek\":1,\"liftProgress\":{\"squat\":{\"cycle\":1,\"week\":1},\"bench\":{\"cycle\":1,\"week\":1},\"deadlift\":{\"cycle\":1,\"week\":1},\"ohp\":{\"cycle\":1,\"week\":1}},\"completedWorkouts\":[],\"settings\":{\"trainingMaxPercentage\":0.9,\"rounding\":2.5,\"unit\":\"lb\",\"theme\":\"dark\"},\"history\":[]}"
+
+    Number of calls: 1
+
+      53 |         it('saves profile to AsyncStorage', async () => {
+      54 |             await Storage.saveProfile(mockProfile);
+    > 55 |             expect(AsyncStorage.setItem).toHaveBeenCalledWith('user_profile', JSON.stringify(mockProfile));
+         |                                          ^
+      56 |         });
+      57 |     });
+      58 |
+
+      at Object.toHaveBeenCalledWith (__tests__/Storage.test.ts:55:42)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ΓùÅ Storage ΓÇ║ clearProfile ΓÇ║ removes profile from AsyncStorage
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: "user_profile"
+    Received: "wendler_531_profile"
+
+    Number of calls: 1
+
+      91 |         it('removes profile from AsyncStorage', async () => {
+      92 |             await Storage.clearProfile();
+    > 93 |             expect(AsyncStorage.removeItem).toHaveBeenCalledWith('user_profile');
+         |                                             ^
+      94 |         });
+      95 |     });
+      96 | });
+
+      at Object.toHaveBeenCalledWith (__tests__/Storage.test.ts:93:45)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 3 passed, 5 total
+Snapshots:   0 total
+Time:        0.473 s, estimated 1 s
+Ran all test suites matching /__tests__\\Storage.test.ts/i.

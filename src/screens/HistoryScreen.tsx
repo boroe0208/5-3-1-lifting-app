@@ -310,13 +310,30 @@ export const HistoryScreen = ({ navigation }: any) => {
                     onPress={() => handleEdit(entry)}
                 >
                     <View style={styles.historyHeader}>
-                        <Text style={[styles.historyTitle, { color: theme.colors.text }]}>{entry.workoutName}</Text>
-                        <Text style={[styles.historyDate, { color: theme.colors.subtext }]}>{new Date(entry.date).toLocaleDateString()}</Text>
+                        <View>
+                            <Text style={[styles.historyTitle, { color: theme.colors.text }]}>{entry.workoutName}</Text>
+                            <Text style={[styles.historyDate, { color: theme.colors.subtext }]}>{new Date(entry.date).toLocaleDateString()}</Text>
+                        </View>
+                        {entry.duration && (
+                            <Text style={[styles.historyDuration, { color: theme.colors.subtext }]}>
+                                {Math.floor(entry.duration / 60)}m {entry.duration % 60}s
+                            </Text>
+                        )}
                     </View>
                     {entry.estimatedOneRepMaxes && Object.keys(entry.estimatedOneRepMaxes).length > 0 && (
                         <Text style={[styles.historyEst1RM, { color: theme.colors.primary }]}>
                             Est. 1RM: {Object.entries(entry.estimatedOneRepMaxes).map(([k, v]) => `${k} ${v}${unit}`).join(', ')}
                         </Text>
+                    )}
+                    {entry.assistanceWork && entry.assistanceWork.length > 0 && (
+                        <View style={[styles.assistanceContainer, { borderTopColor: theme.colors.border }]}>
+                            <Text style={[styles.assistanceHeader, { color: theme.colors.text }]}>Assistance Work:</Text>
+                            {entry.assistanceWork.filter(ex => ex.completed).map((ex, i) => (
+                                <Text key={i} style={[styles.assistanceText, { color: theme.colors.subtext }]}>
+                                    • {ex.name}: {ex.sets}x{ex.reps} {ex.weight ? `@ ${ex.weight}${unit}` : ''}
+                                </Text>
+                            ))}
+                        </View>
                     )}
                 </TouchableOpacity>
             ))}
@@ -395,9 +412,27 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '500',
     },
+    historyDuration: {
+        fontSize: 14,
+        fontWeight: '600',
+    },
     historyEst1RM: {
         fontSize: 16,
         fontWeight: '600',
+    },
+    assistanceContainer: {
+        marginTop: 12,
+        paddingTop: 12,
+        borderTopWidth: 1,
+    },
+    assistanceHeader: {
+        fontSize: 14,
+        fontWeight: '600',
+        marginBottom: 4,
+    },
+    assistanceText: {
+        fontSize: 13,
+        marginBottom: 2,
     },
     noHistoryText: {
         textAlign: 'center',
