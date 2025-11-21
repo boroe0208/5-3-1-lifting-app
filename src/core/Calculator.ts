@@ -1,4 +1,4 @@
-import { OneRepMaxes, Workout, WorkoutSet } from './types';
+import { OneRepMaxes, Workout, WorkoutSet, AssistanceExercise } from './types';
 
 export const ROUNDING_STEP = 2.5;
 
@@ -17,6 +17,10 @@ export class Calculator {
 
     static calculateEstimated1RM(weight: number, reps: number): number {
         return Math.round(weight * reps * 0.0333 + weight);
+    }
+
+    static calculate1RM(weight: number, reps: number): number {
+        return this.calculateEstimated1RM(weight, reps);
     }
 
     static calculateRepsToBeat1RM(weight: number, current1RM: number): number {
@@ -44,7 +48,7 @@ export class Calculator {
 
                 workouts.push({
                     id: `cycle${cycle}_week${week}_${liftKey}`,
-                    name: `${lift} 5/3/1`,
+                    name: `${lift}`,
                     lift: lift, // Added
                     cycle: cycle, // Added
                     week: week,
@@ -55,6 +59,32 @@ export class Calculator {
         });
 
         return workouts;
+    }
+
+    static generateWorkout(lift: string, tm: number, week: number, cycle: number, rounding: number = 2.5): Workout {
+        const workSets = this.getWorkSets(tm, week);
+        return {
+            id: `cycle${cycle}_week${week}_${lift.toLowerCase()}`,
+            name: `${lift}`,
+            lift: lift,
+            cycle: cycle,
+            week: week,
+            sets: workSets,
+            completed: false,
+            assistanceWork: []
+        };
+    }
+
+    static generateBBB(lift: string, tm: number, rounding: number = 2.5): AssistanceExercise[] {
+        // BBB is 5 sets of 10 reps at 50% of TM
+        const weight = this.roundToNearest(tm * 0.5, rounding);
+        return Array(5).fill(null).map((_, i) => ({
+            name: `${lift} (BBB)`,
+            sets: 1,
+            reps: 10,
+            weight: weight,
+            completed: false
+        }));
     }
 
     static getWorkSets(trainingMax: number, week: number): WorkoutSet[] {

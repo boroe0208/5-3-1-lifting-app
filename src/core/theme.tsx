@@ -12,6 +12,7 @@ export interface Theme {
         border: string;
         success: string;
         danger: string;
+        warning: string;
         inputBackground: string;
     };
     shadow: {
@@ -35,6 +36,7 @@ export const THEMES: Record<string, Theme> = {
             border: '#E5E5EA',
             success: '#34C759',
             danger: '#FF3B30',
+            warning: '#FF9500',
             inputBackground: '#F2F2F7',
         },
         shadow: {
@@ -56,6 +58,7 @@ export const THEMES: Record<string, Theme> = {
             border: '#38383A',
             success: '#30D158',
             danger: '#FF453A',
+            warning: '#FF9F0A',
             inputBackground: '#2C2C2E',
         },
         shadow: {
@@ -77,6 +80,7 @@ export const THEMES: Record<string, Theme> = {
             border: '#334155', // Slate 700
             success: '#10B981', // Emerald 500
             danger: '#EF4444', // Red 500
+            warning: '#F59E0B', // Amber 500
             inputBackground: '#334155',
         },
         shadow: {
@@ -98,6 +102,7 @@ export const THEMES: Record<string, Theme> = {
             border: '#2E7D32',
             success: '#66BB6A',
             danger: '#EF5350',
+            warning: '#FFA726',
             inputBackground: '#25452A',
         },
         shadow: {

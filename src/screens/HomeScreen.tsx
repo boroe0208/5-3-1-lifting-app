@@ -1,10 +1,12 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Button, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Button, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { Storage } from '../core/Storage';
 import { UserProfile, Workout } from '../core/types';
 import { Calculator } from '../core/Calculator';
 import { useTheme } from '../core/theme';
+import { useUser } from '../core/UserContext';
 
 const LIFT_IMAGES: Record<string, any> = {
     squat: require('../../assets/lifts/squat.png'),
@@ -15,68 +17,65 @@ const LIFT_IMAGES: Record<string, any> = {
 
 export const HomeScreen = ({ navigation }: any) => {
     const { theme } = useTheme();
-    const [profile, setProfile] = useState<UserProfile | null>(null);
+    const { profile, isLoading, clearProfile } = useUser();
     const [workouts, setWorkouts] = useState<Workout[]>([]);
 
     useFocusEffect(
         useCallback(() => {
-            loadData();
+            if (profile) {
+                const lifts = ['Squat', 'Bench', 'Deadlift', 'OHP'];
+                const newWorkouts: Workout[] = [];
+
+                lifts.forEach(lift => {
+                    const liftKey = lift.toLowerCase();
+                    const progress = profile.liftProgress?.[liftKey] || {
+                        cycle: profile.currentCycle || 1,
+                        week: profile.currentWeek || 1
+                    };
+
+                    const oneRepMax = profile.oneRepMaxes[liftKey as keyof typeof profile.oneRepMaxes] || 0;
+                    const trainingMax = Calculator.roundToNearest(
+                        oneRepMax * profile.settings.trainingMaxPercentage,
+                        profile.settings.rounding
+                    );
+
+                    const workout = Calculator.generateWorkout(
+                        lift,
+                        trainingMax,
+                        progress.week,
+                        progress.cycle,
+                        profile.settings.rounding
+                    );
+                    newWorkouts.push(workout);
+                });
+
+                setWorkouts(newWorkouts);
+            }
+
             navigation.setOptions({
                 headerStyle: { backgroundColor: theme.colors.card },
                 headerTintColor: theme.colors.text,
                 headerRight: () => (
-                    <View style={{ flexDirection: 'row' }}>
-                        <TouchableOpacity onPress={() => navigation.navigate('History')} style={{ marginRight: 15 }}>
-                            <Text style={{ color: theme.colors.primary, fontSize: 16 }}>History</Text>
+                    <View style={{ flexDirection: 'row', marginRight: 10 }}>
+                        <TouchableOpacity onPress={() => navigation.navigate('History')} style={{ marginRight: 20 }}>
+                            <Ionicons name="calendar-outline" size={24} color={theme.colors.primary} />
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
-                            <Text style={{ color: theme.colors.primary, fontSize: 16 }}>Settings</Text>
+                            <Ionicons name="settings-outline" size={24} color={theme.colors.primary} />
                         </TouchableOpacity>
                     </View>
                 ),
             });
-        }, [theme])
+        }, [theme, profile])
     );
 
-    const loadData = async () => {
-        const userProfile = await Storage.getProfile();
-        if (userProfile) {
-            setProfile(userProfile);
-
-            // Calculate workouts for the current cycle/week
-            const currentWeek = userProfile.currentWeek || 1;
-            const generatedWorkouts = Calculator.generateCycleWorkouts(
-                userProfile.oneRepMaxes,
-                userProfile.settings.trainingMaxPercentage,
-                userProfile.settings.rounding,
-                userProfile.currentCycle || 1
-            ).filter(w => w.week === currentWeek);
-
-            setWorkouts(generatedWorkouts);
-        } else {
-            // If no profile, maybe redirect to onboarding or show setup button
-            // For now, we handle it in render
-        }
-    };
-
-    const handleReset = async () => {
-        Alert.alert(
-            "Reset All Data",
-            "Are you sure? This cannot be undone.",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Reset",
-                    style: "destructive",
-                    onPress: async () => {
-                        await Storage.clearProfile();
-                        setProfile(null);
-                        setWorkouts([]);
-                    }
-                }
-            ]
+    if (isLoading) {
+        return (
+            <View style={[styles.container, { backgroundColor: theme.colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+                <Text style={{ color: theme.colors.text }}>Loading...</Text>
+            </View>
         );
-    };
+    }
 
     if (!profile) {
         return (
@@ -114,7 +113,7 @@ export const HomeScreen = ({ navigation }: any) => {
                     >
                         <View style={styles.cardContent}>
                             <View style={styles.cardHeader}>
-                                <Image source={LIFT_IMAGES[liftKey]} style={[styles.liftImage, { tintColor: theme.colors.text }]} resizeMode="contain" />
+                                <Image source={LIFT_IMAGES[liftKey]} style={styles.liftImage} resizeMode="contain" />
                                 <View>
                                     <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{workout.name}</Text>
                                     <Text style={[styles.cardSubtitle, { color: theme.colors.subtext }]}>{liftSubtitle}</Text>
@@ -125,10 +124,6 @@ export const HomeScreen = ({ navigation }: any) => {
                     </TouchableOpacity>
                 );
             })}
-
-            <TouchableOpacity style={[styles.resetButton, { backgroundColor: theme.colors.danger }]} onPress={handleReset}>
-                <Text style={styles.resetButtonText}>Reset App Data</Text>
-            </TouchableOpacity>
         </ScrollView>
     );
 };

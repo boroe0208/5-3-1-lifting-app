@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
-import { Storage } from '../core/Storage';
+import { useUser } from '../core/UserContext';
 import { UserProfile } from '../core/types';
 
 export const OnboardingScreen = ({ navigation }: any) => {
+    const { saveProfile } = useUser();
     const [squat, setSquat] = useState('');
     const [bench, setBench] = useState('');
     const [deadlift, setDeadlift] = useState('');
@@ -40,7 +41,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
             }
         };
 
-        await Storage.saveProfile(profile);
+        await saveProfile(profile);
         // Reset the navigation stack to Home to ensure reload
         navigation.reset({
             index: 0,

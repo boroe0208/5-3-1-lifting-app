@@ -48,6 +48,7 @@ export interface WorkoutHistoryEntry {
     assistanceWork?: AssistanceExercise[];
     estimatedOneRepMaxes?: Partial<OneRepMaxes>;
     duration?: number; // Duration in seconds
+    completed: boolean;
 }
 
 export interface UserProfile {
@@ -60,6 +61,7 @@ export interface UserProfile {
     history: WorkoutHistoryEntry[];
     assistanceTemplate?: AssistanceTemplate;
     customAssistance?: Record<string, AssistanceExercise[]>; // Key: 'squat', 'bench', etc.
+    personalRecords?: OneRepMaxes; // Track best estimated 1RM separately from Training Max basis
 }
 
 export interface Workout {
@@ -71,4 +73,5 @@ export interface Workout {
     sets: WorkoutSet[];
     completed: boolean;
     date?: string;
+    assistanceWork?: AssistanceExercise[];
 }

@@ -7,31 +7,27 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import XLSX from 'xlsx';
 import { useTheme, THEMES } from '../core/theme';
+import { useUser } from '../core/UserContext';
+import { SettingsSection } from '../components/SettingsSection';
 
 export const SettingsScreen = ({ navigation }: any) => {
     const { theme, setTheme } = useTheme();
-    const [profile, setProfile] = useState<UserProfile | null>(null);
+    const { profile, saveProfile, resetProfile, clearProfile } = useUser();
     const [tmPercentage, setTmPercentage] = useState('90');
     const [rounding, setRounding] = useState('2.5');
 
     useEffect(() => {
-        loadSettings();
+        if (profile) {
+            setTmPercentage(profile.settings.trainingMaxPercentage.toString());
+            setRounding(profile.settings.rounding.toString());
+        }
         navigation.setOptions({
             headerStyle: { backgroundColor: theme.colors.card },
             headerTintColor: theme.colors.text,
         });
-    }, [theme]);
+    }, [theme, profile]);
 
-    const loadSettings = async () => {
-        const userProfile = await Storage.getProfile();
-        if (userProfile) {
-            setProfile(userProfile);
-            setTmPercentage(userProfile.settings.trainingMaxPercentage.toString());
-            setRounding(userProfile.settings.rounding.toString());
-        }
-    };
-
-    const saveSettings = async () => {
+    const handleSaveSettings = async () => {
         if (!profile) return;
         const newSettings = {
             ...profile.settings,
@@ -42,8 +38,7 @@ export const SettingsScreen = ({ navigation }: any) => {
             ...profile,
             settings: newSettings,
         };
-        setProfile(newProfile);
-        await Storage.saveProfile(newProfile);
+        await saveProfile(newProfile);
     };
 
     const exportHistory = async () => {
@@ -125,42 +120,58 @@ export const SettingsScreen = ({ navigation }: any) => {
         }
     };
 
-    const handleReset = async () => {
+    const handleResetProgress = async () => {
+        if (Platform.OS === 'web') {
+            if (window.confirm("This will reset your current cycle and week to 1/1. Your 1RMs and workout history will be preserved.")) {
+                await resetProfile();
+                window.alert('Success: Cycle progress has been reset to 1/1.');
+            }
+            return;
+        }
+
         Alert.alert(
-            "Reset Data",
-            "Choose an option:",
+            "Reset Cycle Progress",
+            "This will reset your current cycle and week to 1/1. Your 1RMs and workout history will be preserved.",
             [
                 { text: "Cancel", style: "cancel" },
                 {
-                    text: "Reset Progress Only",
+                    text: "Reset Progress",
                     onPress: async () => {
-                        await Storage.resetProgress();
-                        Alert.alert('Success', 'Cycle progress has been reset to 1/1. 1RMs and History are preserved.');
-                        loadSettings();
+                        await resetProfile();
+                        Alert.alert('Success', 'Cycle progress has been reset to 1/1.');
                     }
-                },
+                }
+            ]
+        );
+    };
+
+    const handleStartFromScratch = async () => {
+        if (Platform.OS === 'web') {
+            if (window.confirm("Are you sure you want to delete EVERYTHING? This includes all history, settings, and progress. This cannot be undone.")) {
+                await clearProfile();
+                navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'Home' }],
+                });
+            }
+            return;
+        }
+
+        Alert.alert(
+            "Start from Scratch",
+            "Are you sure you want to delete EVERYTHING? This includes all history, settings, and progress. This cannot be undone.",
+            [
+                { text: "Cancel", style: "cancel" },
                 {
-                    text: "Factory Reset (Wipe All)",
+                    text: "Delete Everything",
                     style: "destructive",
                     onPress: async () => {
-                        Alert.alert(
-                            "Confirm Factory Reset",
-                            "Are you sure? This will delete ALL data including history and settings.",
-                            [
-                                { text: "Cancel", style: "cancel" },
-                                {
-                                    text: "Wipe Everything",
-                                    style: "destructive",
-                                    onPress: async () => {
-                                        await Storage.clearProfile();
-                                        navigation.reset({
-                                            index: 0,
-                                            routes: [{ name: 'Home' }],
-                                        });
-                                    }
-                                }
-                            ]
-                        );
+                        await clearProfile();
+                        // Reset navigation stack to force onboarding
+                        navigation.reset({
+                            index: 0,
+                            routes: [{ name: 'Home' }],
+                        });
                     }
                 }
             ]
@@ -168,11 +179,9 @@ export const SettingsScreen = ({ navigation }: any) => {
     };
 
     const handleAssistanceChange = async (template: 'None' | 'BoringButBig' | 'Custom') => {
-        const profile = await Storage.getProfile();
         if (profile) {
-            profile.assistanceTemplate = template;
-            await Storage.saveProfile(profile);
-            loadSettings();
+            const newProfile = { ...profile, assistanceTemplate: template };
+            await saveProfile(newProfile);
         }
     };
 
@@ -184,8 +193,7 @@ export const SettingsScreen = ({ navigation }: any) => {
 
     return (
         <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-            <View style={[styles.section, { backgroundColor: theme.colors.card }, theme.shadow]}>
-                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Training Max</Text>
+            <SettingsSection title="Training Max">
                 <Text style={[styles.label, { color: theme.colors.subtext }]}>Percentage of 1RM to use as Training Max</Text>
                 <View style={styles.row}>
                     <TextInput
@@ -193,14 +201,13 @@ export const SettingsScreen = ({ navigation }: any) => {
                         keyboardType="numeric"
                         value={tmPercentage}
                         onChangeText={setTmPercentage}
-                        onBlur={saveSettings}
+                        onBlur={handleSaveSettings}
                     />
                     <Text style={[styles.unit, { color: theme.colors.text }]}>%</Text>
                 </View>
-            </View>
+            </SettingsSection>
 
-            <View style={[styles.section, { backgroundColor: theme.colors.card }, theme.shadow]}>
-                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Assistance Work</Text>
+            <SettingsSection title="Assistance Work">
                 <Text style={[styles.label, { color: theme.colors.subtext }]}>Choose your accessory work template</Text>
                 <View style={styles.row}>
                     {['None', 'BoringButBig', 'Custom'].map((template) => (
@@ -232,10 +239,9 @@ export const SettingsScreen = ({ navigation }: any) => {
                         Custom exercises can be configured in the workout screen (Coming Soon).
                     </Text>
                 )}
-            </View>
+            </SettingsSection>
 
-            <View style={[styles.section, { backgroundColor: theme.colors.card }, theme.shadow]}>
-                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Rounding</Text>
+            <SettingsSection title="Rounding">
                 <Text style={[styles.label, { color: theme.colors.subtext }]}>Round weights to nearest</Text>
                 <View style={styles.row}>
                     <TextInput
@@ -243,14 +249,13 @@ export const SettingsScreen = ({ navigation }: any) => {
                         keyboardType="numeric"
                         value={rounding}
                         onChangeText={setRounding}
-                        onBlur={saveSettings}
+                        onBlur={handleSaveSettings}
                     />
                     <Text style={[styles.unit, { color: theme.colors.text }]}>{profile.settings.unit}</Text>
                 </View>
-            </View>
+            </SettingsSection>
 
-            <View style={[styles.section, { backgroundColor: theme.colors.card }, theme.shadow]}>
-                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Theme</Text>
+            <SettingsSection title="Theme">
                 <View style={styles.themeContainer}>
                     {Object.keys(THEMES).map((themeKey) => (
                         <TouchableOpacity
@@ -266,23 +271,27 @@ export const SettingsScreen = ({ navigation }: any) => {
                         </TouchableOpacity>
                     ))}
                 </View>
-            </View>
+            </SettingsSection>
 
             <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
 
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Data Management</Text>
+            <SettingsSection title="Data Management">
+                <TouchableOpacity style={[styles.actionButton, { borderColor: theme.colors.primary }]} onPress={exportHistory}>
+                    <Text style={[styles.actionButtonText, { color: theme.colors.primary }]}>Export History (Excel)</Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.actionButton, { borderColor: theme.colors.primary }]} onPress={exportHistory}>
-                <Text style={[styles.actionButtonText, { color: theme.colors.primary }]}>Export History (Excel)</Text>
-            </TouchableOpacity>
+                <TouchableOpacity style={[styles.actionButton, { borderColor: theme.colors.primary }]} onPress={importHistory}>
+                    <Text style={[styles.actionButtonText, { color: theme.colors.primary }]}>Import History (Excel)</Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.actionButton, { borderColor: theme.colors.primary }]} onPress={importHistory}>
-                <Text style={[styles.actionButtonText, { color: theme.colors.primary }]}>Import History (Excel)</Text>
-            </TouchableOpacity>
+                <TouchableOpacity style={[styles.actionButton, { borderColor: theme.colors.warning, marginTop: 32 }]} onPress={handleResetProgress}>
+                    <Text style={[styles.actionButtonText, { color: theme.colors.warning }]}>Reset Cycle Progress</Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.actionButton, { borderColor: theme.colors.danger, marginTop: 32 }]} onPress={handleReset}>
-                <Text style={[styles.actionButtonText, { color: theme.colors.danger }]}>Reset App Data</Text>
-            </TouchableOpacity>
+                <TouchableOpacity style={[styles.actionButton, { borderColor: theme.colors.danger, marginTop: 16 }]} onPress={handleStartFromScratch}>
+                    <Text style={[styles.actionButtonText, { color: theme.colors.danger }]}>Start from Scratch</Text>
+                </TouchableOpacity>
+            </SettingsSection>
         </ScrollView>
     );
 };
@@ -330,16 +339,7 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         fontSize: 16,
     },
-    section: {
-        borderRadius: 24,
-        padding: 20,
-        marginBottom: 24,
-    },
-    sectionTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        marginBottom: 16,
-    },
+
     label: {
         fontSize: 14,
         marginBottom: 12,
