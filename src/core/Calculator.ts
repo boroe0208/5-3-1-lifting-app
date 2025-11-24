@@ -1,6 +1,6 @@
 import { OneRepMaxes, Workout, WorkoutSet, AssistanceExercise } from './types';
 
-export const ROUNDING_STEP = 2.5;
+export const ROUNDING_STEP = 5;
 
 export class Calculator {
     static roundToNearest(value: number, step: number = ROUNDING_STEP): number {
@@ -49,8 +49,8 @@ export class Calculator {
                 workouts.push({
                     id: `cycle${cycle}_week${week}_${liftKey}`,
                     name: `${lift}`,
-                    lift: lift, // Added
-                    cycle: cycle, // Added
+                    lift: lift,
+                    cycle: cycle,
                     week: week,
                     sets: workSets,
                     completed: false
@@ -116,5 +116,42 @@ export class Calculator {
             completed: false,
             isAmrap: week !== 4 && index === 2,
         }));
+    }
+
+    static calculatePlates(weight: number, unit: 'lb' | 'kg' = 'lb', inventory?: { [weight: number]: number }): number[] {
+        const barWeight = unit === 'lb' ? 45 : 20;
+        const availablePlates = unit === 'lb'
+            ? [45, 35, 25, 10, 5, 2.5]
+            : [20, 15, 10, 5, 2.5, 1.25];
+
+        let remainingWeight = (weight - barWeight) / 2;
+        const plates: number[] = [];
+
+        // Create a mutable copy of inventory if provided, otherwise assume infinite
+        const currentInventory = inventory ? { ...inventory } : null;
+
+        if (remainingWeight <= 0) return [];
+
+        for (const plate of availablePlates) {
+            while (remainingWeight >= plate) {
+                // Check inventory if it exists
+                if (currentInventory) {
+                    const count = currentInventory[plate] || 0;
+                    if (count >= 2) { // Need 2 plates (one for each side)
+                        plates.push(plate);
+                        remainingWeight -= plate;
+                        currentInventory[plate] -= 2;
+                    } else {
+                        break; // Not enough of this plate, move to next smaller
+                    }
+                } else {
+                    // Infinite inventory
+                    plates.push(plate);
+                    remainingWeight -= plate;
+                }
+            }
+        }
+
+        return plates;
     }
 }

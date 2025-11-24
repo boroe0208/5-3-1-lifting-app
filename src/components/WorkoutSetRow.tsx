@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
 import { useTheme } from '../core/theme';
 import { WorkoutSet } from '../core/types';
+import { PlateDisplay } from './PlateDisplay';
 
 interface WorkoutSetRowProps {
     set: WorkoutSet;
@@ -10,6 +11,7 @@ interface WorkoutSetRowProps {
     onUpdateReps: (index: number, delta: number) => void;
     onChangeReps: (index: number, text: string) => void;
     repsToBeat: number | null;
+    unit: 'lb' | 'kg';
 }
 
 export const WorkoutSetRow = ({
@@ -18,9 +20,11 @@ export const WorkoutSetRow = ({
     onToggleComplete,
     onUpdateReps,
     onChangeReps,
-    repsToBeat
+    repsToBeat,
+    unit
 }: WorkoutSetRowProps) => {
     const { theme } = useTheme();
+    const [showPlates, setShowPlates] = useState(false);
 
     const actualReps = set.actualReps ?? set.reps;
 
@@ -43,6 +47,12 @@ export const WorkoutSetRow = ({
                 <Text style={[styles.setSubtext, { color: theme.colors.subtext }]}>
                     {Math.round((set.percentage || 0) * 100)}% TM
                 </Text>
+                <TouchableOpacity onPress={() => setShowPlates(!showPlates)}>
+                    <Text style={[styles.plateToggle, { color: theme.colors.primary }]}>
+                        {showPlates ? 'Hide Plates' : 'Show Plates'}
+                    </Text>
+                </TouchableOpacity>
+                {showPlates && <PlateDisplay weight={set.weight} unit={unit} />}
             </TouchableOpacity>
 
             <View style={styles.controlsContainer}>
@@ -111,6 +121,11 @@ const styles = StyleSheet.create({
     },
     repsToBeat: {
         fontSize: 12,
+        fontWeight: '600',
+    },
+    plateToggle: {
+        fontSize: 12,
+        marginTop: 4,
         fontWeight: '600',
     },
     controlsContainer: {

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useTheme } from '../core/theme';
+import { useUser } from '../core/UserContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { RestTimer } from '../components/RestTimer';
 import { WorkoutSetRow } from '../components/WorkoutSetRow';
@@ -10,6 +11,7 @@ import { AssistanceExerciseCard } from '../components/AssistanceExerciseCard';
 
 export const WorkoutScreen = ({ route, navigation }: any) => {
     const { theme } = useTheme();
+    const { profile } = useUser();
     const {
         workout,
         sets,
@@ -97,6 +99,7 @@ export const WorkoutScreen = ({ route, navigation }: any) => {
                             onUpdateReps={updateSetReps}
                             onChangeReps={changeSetReps}
                             repsToBeat={repsToBeat}
+                            unit={profile?.settings.unit || 'lb'}
                         />
                     ))}
                 </View>

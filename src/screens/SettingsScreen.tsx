@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ScrollView, Platform } from 'react-native';
 import { Storage } from '../core/Storage';
-import { UserProfile, WorkoutHistoryEntry } from '../core/types';
+import { UserProfile } from '../core/types';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
@@ -9,12 +9,13 @@ import XLSX from 'xlsx';
 import { useTheme, THEMES } from '../core/theme';
 import { useUser } from '../core/UserContext';
 import { SettingsSection } from '../components/SettingsSection';
+import { Ionicons } from '@expo/vector-icons';
 
 export const SettingsScreen = ({ navigation }: any) => {
     const { theme, setTheme } = useTheme();
     const { profile, saveProfile, resetProfile, clearProfile } = useUser();
     const [tmPercentage, setTmPercentage] = useState('90');
-    const [rounding, setRounding] = useState('2.5');
+    const [rounding, setRounding] = useState('5');
 
     useEffect(() => {
         if (profile) {
@@ -27,9 +28,9 @@ export const SettingsScreen = ({ navigation }: any) => {
         });
     }, [theme, profile]);
 
-    const handleSaveSettings = async () => {
+    const handleSaveSettings = async (updatedSettings?: any) => {
         if (!profile) return;
-        const newSettings = {
+        const newSettings = updatedSettings || {
             ...profile.settings,
             trainingMaxPercentage: parseFloat(tmPercentage),
             rounding: parseFloat(rounding),
@@ -108,11 +109,7 @@ export const SettingsScreen = ({ navigation }: any) => {
             const ws = wb.Sheets[wsname];
             const data = XLSX.utils.sheet_to_json(ws);
 
-            // Basic validation and merging logic would go here
-            // For now, just alert success as a placeholder for complex merging logic
             Alert.alert('Import', `Read ${data.length} rows. Merging logic to be implemented.`);
-
-            // In a real app, we'd parse 'data' back into WorkoutHistoryEntry[] and merge with profile.history
 
         } catch (error) {
             Alert.alert('Error', 'Failed to import file.');
@@ -167,7 +164,6 @@ export const SettingsScreen = ({ navigation }: any) => {
                     style: "destructive",
                     onPress: async () => {
                         await clearProfile();
-                        // Reset navigation stack to force onboarding
                         navigation.reset({
                             index: 0,
                             routes: [{ name: 'Home' }],
@@ -201,7 +197,7 @@ export const SettingsScreen = ({ navigation }: any) => {
                         keyboardType="numeric"
                         value={tmPercentage}
                         onChangeText={setTmPercentage}
-                        onBlur={handleSaveSettings}
+                        onBlur={() => handleSaveSettings()}
                     />
                     <Text style={[styles.unit, { color: theme.colors.text }]}>%</Text>
                 </View>
@@ -241,6 +237,58 @@ export const SettingsScreen = ({ navigation }: any) => {
                 )}
             </SettingsSection>
 
+            <SettingsSection title="Plate Inventory">
+                <Text style={[styles.label, { color: theme.colors.subtext }]}>
+                    Set the number of individual plates you have available.
+                </Text>
+
+                {['lb', 'kg'].includes(profile.settings.unit) && (
+                    <View>
+                        {(profile.settings.unit === 'lb' ? [45, 35, 25, 10, 5, 2.5] : [20, 15, 10, 5, 2.5, 1.25]).map(weight => {
+                            const unit = profile.settings.unit as 'lb' | 'kg';
+                            const currentCount = (profile.settings.plateInventory?.[unit]?.[weight] || 0);
+
+                            return (
+                                <View key={weight} style={styles.row}>
+                                    <Text style={{ color: theme.colors.text, fontSize: 16, width: 60 }}>{weight} {unit}</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <TouchableOpacity
+                                            onPress={() => {
+                                                const currentInventory = { ...profile.settings.plateInventory };
+                                                if (!currentInventory[unit]) currentInventory[unit] = {};
+                                                const current = currentInventory[unit]![weight] || 0;
+                                                currentInventory[unit]![weight] = Math.max(0, current - 1);
+                                                handleSaveSettings({ ...profile.settings, plateInventory: currentInventory });
+                                            }}
+                                            style={[styles.roundButton, { backgroundColor: theme.colors.border }]}
+                                        >
+                                            <Ionicons name="remove" size={20} color={theme.colors.text} />
+                                        </TouchableOpacity>
+
+                                        <Text style={{ color: theme.colors.text, marginHorizontal: 15, fontSize: 16, width: 30, textAlign: 'center' }}>
+                                            {currentCount}
+                                        </Text>
+
+                                        <TouchableOpacity
+                                            onPress={() => {
+                                                const currentInventory = { ...profile.settings.plateInventory };
+                                                if (!currentInventory[unit]) currentInventory[unit] = {};
+                                                const current = currentInventory[unit]![weight] || 0;
+                                                currentInventory[unit]![weight] = current + 1;
+                                                handleSaveSettings({ ...profile.settings, plateInventory: currentInventory });
+                                            }}
+                                            style={[styles.roundButton, { backgroundColor: theme.colors.border }]}
+                                        >
+                                            <Ionicons name="add" size={20} color={theme.colors.text} />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            );
+                        })}
+                    </View>
+                )}
+            </SettingsSection>
+
             <SettingsSection title="Rounding">
                 <Text style={[styles.label, { color: theme.colors.subtext }]}>Round weights to nearest</Text>
                 <View style={styles.row}>
@@ -249,7 +297,7 @@ export const SettingsScreen = ({ navigation }: any) => {
                         keyboardType="numeric"
                         value={rounding}
                         onChangeText={setRounding}
-                        onBlur={handleSaveSettings}
+                        onBlur={() => handleSaveSettings()}
                     />
                     <Text style={[styles.unit, { color: theme.colors.text }]}>{profile.settings.unit}</Text>
                 </View>
@@ -300,7 +348,6 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         marginBottom: 20,
-        letterSpacing: 0.5,
     },
     actionButton: {
         padding: 18,
@@ -348,6 +395,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
+        marginBottom: 15,
     },
     input: {
         borderWidth: 1,
@@ -379,23 +427,11 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontStyle: 'italic',
     },
-    saveButton: {
-        padding: 18,
-        borderRadius: 16,
+    roundButton: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        justifyContent: 'center',
         alignItems: 'center',
-        marginTop: 8,
-        shadowColor: "#000",
-        shadowOffset: {
-            width: 0,
-            height: 4,
-        },
-        shadowOpacity: 0.30,
-        shadowRadius: 4.65,
-        elevation: 8,
-    },
-    saveButtonText: {
-        color: 'white',
-        fontSize: 18,
-        fontWeight: '700',
     },
 });

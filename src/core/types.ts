@@ -3,6 +3,7 @@ export interface Settings {
     rounding: number;
     unit: 'lb' | 'kg';
     theme: string;
+    plateInventory?: { lb: { [weight: number]: number }; kg: { [weight: number]: number } };
 }
 
 export interface OneRepMaxes {

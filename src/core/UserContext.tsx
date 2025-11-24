@@ -27,7 +27,31 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     const refreshProfile = useCallback(async () => {
         try {
             const data = await Storage.getProfile();
-            setProfile(data);
+            if (!data) {
+                // Default profile if none exists
+                const defaultProfile: UserProfile = {
+                    oneRepMaxes: { squat: 0, bench: 0, deadlift: 0, ohp: 0 },
+                    currentCycle: 1,
+                    currentWeek: 1,
+                    liftProgress: {},
+                    completedWorkouts: [],
+                    settings: {
+                        trainingMaxPercentage: 0.9,
+                        rounding: 5,
+                        unit: 'lb',
+                        theme: 'default',
+                        plateInventory: {
+                            lb: { 45: 12, 35: 0, 25: 12, 10: 12, 5: 12, 2.5: 12 },
+                            kg: { 20: 12, 15: 12, 10: 12, 5: 12, 2.5: 12, 1.25: 12 }
+                        }
+                    },
+                    history: [],
+                };
+                setProfile(defaultProfile);
+                await Storage.saveProfile(defaultProfile);
+            } else {
+                setProfile(data);
+            }
         } catch (error) {
             console.error('Failed to load profile:', error);
         } finally {
