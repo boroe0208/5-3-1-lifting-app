@@ -5,6 +5,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { RestTimer } from '../components/RestTimer';
 import { WorkoutSetRow } from '../components/WorkoutSetRow';
 import { useWorkoutLogic } from '../hooks/useWorkoutLogic';
+import { ExerciseLibraryModal } from '../components/ExerciseLibraryModal';
+import { AssistanceExerciseCard } from '../components/AssistanceExerciseCard';
 
 export const WorkoutScreen = ({ route, navigation }: any) => {
     const { theme } = useTheme();
@@ -19,15 +21,23 @@ export const WorkoutScreen = ({ route, navigation }: any) => {
         setIsMainLiftExpanded,
         isAssistanceExpanded,
         setIsAssistanceExpanded,
-        amrapReps,
-        setAmrapReps,
         repsToBeat,
         startTimer,
         stopTimer,
         toggleSetComplete,
-        toggleAssistanceComplete,
+        toggleAssistanceSetComplete,
+        addAssistanceExercise,
+        removeAssistanceExercise,
+        updateAssistanceSets,
+        getPreviousHistory,
+        updateSetReps,
+        changeSetReps,
+        updateAssistanceSetReps,
+        changeAssistanceSetReps,
         finishWorkout
     } = useWorkoutLogic({ route, navigation });
+
+    const [isLibraryVisible, setIsLibraryVisible] = React.useState(false);
 
     useFocusEffect(
         React.useCallback(() => {
@@ -84,46 +94,49 @@ export const WorkoutScreen = ({ route, navigation }: any) => {
                             set={set}
                             index={index}
                             onToggleComplete={toggleSetComplete}
-                            amrapReps={amrapReps}
-                            onAmrapChange={setAmrapReps}
+                            onUpdateReps={updateSetReps}
+                            onChangeReps={changeSetReps}
                             repsToBeat={repsToBeat}
                         />
                     ))}
                 </View>
 
                 {/* Assistance Work */}
-                {assistanceWork.length > 0 && (
-                    <View style={[styles.section, { backgroundColor: theme.colors.card }, theme.shadow]}>
-                        <TouchableOpacity onPress={() => setIsAssistanceExpanded(!isAssistanceExpanded)} style={styles.sectionHeader}>
-                            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Assistance Work</Text>
-                            <Text style={{ color: theme.colors.text, fontSize: 18 }}>{isAssistanceExpanded ? '▲' : '▼'}</Text>
-                        </TouchableOpacity>
+                <View style={[styles.section, { backgroundColor: theme.colors.card }, theme.shadow]}>
+                    <TouchableOpacity onPress={() => setIsAssistanceExpanded(!isAssistanceExpanded)} style={styles.sectionHeader}>
+                        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Assistance Work</Text>
+                        <Text style={{ color: theme.colors.text, fontSize: 18 }}>{isAssistanceExpanded ? '▲' : '▼'}</Text>
+                    </TouchableOpacity>
 
-                        {isAssistanceExpanded && assistanceWork.map((exercise, index) => (
-                            <TouchableOpacity
-                                key={index}
-                                style={[styles.setRow, { borderBottomColor: theme.colors.border }]}
-                                onPress={() => toggleAssistanceComplete(index)}
-                            >
-                                <View style={styles.setInfo}>
-                                    <Text style={[styles.setText, { color: theme.colors.text, fontSize: 18 }]}>
-                                        {exercise.name}
-                                    </Text>
-                                    <Text style={[styles.setSubtext, { color: theme.colors.subtext }]}>
-                                        {exercise.sets} x {exercise.reps} {exercise.weight ? `@ ${exercise.weight}` : ''}
-                                    </Text>
-                                </View>
-                                <View style={[
-                                    styles.checkCircle,
-                                    { borderColor: theme.colors.primary },
-                                    exercise.completed && { backgroundColor: theme.colors.primary }
-                                ]}>
-                                    {exercise.completed && <Text style={styles.checkMark}>✓</Text>}
-                                </View>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                )}
+                    {isAssistanceExpanded && assistanceWork.map((exercise, index) => (
+                        <AssistanceExerciseCard
+                            key={index}
+                            exercise={exercise}
+                            onToggleSetComplete={(setIndex) => toggleAssistanceSetComplete(index, setIndex)}
+                            onRemove={() => removeAssistanceExercise(index)}
+                            onUpdateSets={(delta) => updateAssistanceSets(index, delta)}
+                            onUpdateReps={(setIndex, delta) => updateAssistanceSetReps(index, setIndex, delta)}
+                            onChangeReps={(setIndex, text) => changeAssistanceSetReps(index, setIndex, text)}
+                            previousData={getPreviousHistory(exercise.name)}
+                        />
+                    ))}
+
+                    {isAssistanceExpanded && (
+                        <TouchableOpacity
+                            style={[styles.addButton, { borderColor: theme.colors.primary }]}
+                            onPress={() => setIsLibraryVisible(true)}
+                        >
+                            <Text style={[styles.addButtonText, { color: theme.colors.primary }]}>+ Add Exercise</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+
+                {/* Exercise Library Modal */}
+                <ExerciseLibraryModal
+                    visible={isLibraryVisible}
+                    onClose={() => setIsLibraryVisible(false)}
+                    onSelect={addAssistanceExercise}
+                />
 
                 <TouchableOpacity
                     style={[styles.finishButton, { backgroundColor: theme.colors.success }]}
@@ -222,5 +235,18 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 20,
         fontWeight: '700',
+    },
+    addButton: {
+        marginTop: 16,
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderStyle: 'dashed',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    addButtonText: {
+        fontSize: 16,
+        fontWeight: '600',
     },
 });

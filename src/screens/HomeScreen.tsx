@@ -87,43 +87,56 @@ export const HomeScreen = ({ navigation }: any) => {
     }
 
     return (
-        <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-            <View style={styles.header}>
-                <Text style={[styles.title, { color: theme.colors.text }]}>Cycle {profile.currentCycle || 1} - Week {profile.currentWeek || 1}</Text>
+        <ScrollView
+            style={[styles.container, { backgroundColor: theme.colors.background }]}
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}
+        >
+            <View style={[styles.header, { alignItems: 'center' }]}>
+                <Text style={[styles.title, { color: theme.colors.text, textAlign: 'center' }]}>Ed's 5/3/1</Text>
             </View>
 
-            {workouts.map(workout => {
-                const isCompleted = profile.completedWorkouts.includes(workout.id);
-                const liftKey = workout.name.split(' ')[0].toLowerCase();
-                const liftProgress = profile.liftProgress?.[liftKey];
-                const liftSubtitle = liftProgress
-                    ? `Cycle ${liftProgress.cycle} Week ${liftProgress.week}`
-                    : `Cycle ${profile.currentCycle || 1} Week ${profile.currentWeek || 1}`;
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalList}
+                style={{ marginHorizontal: -20, paddingHorizontal: 20, flexGrow: 0 }}
+            >
+                {workouts.map((workout, index) => {
+                    const isCompleted = profile.completedWorkouts.includes(workout.id);
+                    const liftKey = workout.name.split(' ')[0].toLowerCase();
+                    const liftProgress = profile.liftProgress?.[liftKey];
+                    const liftSubtitle = liftProgress
+                        ? `Cycle ${liftProgress.cycle} Week ${liftProgress.week}`
+                        : `Cycle ${profile.currentCycle || 1} Week ${profile.currentWeek || 1}`;
+                    const oneRepMax = profile.oneRepMaxes[liftKey as keyof typeof profile.oneRepMaxes] || 0;
 
-                return (
-                    <TouchableOpacity
-                        key={workout.id}
-                        style={[
-                            styles.card,
-                            { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
-                            theme.shadow,
-                            isCompleted && { borderColor: theme.colors.success, borderWidth: 2 }
-                        ]}
-                        onPress={() => navigation.navigate('Workout', { workout, lift: workout.name.split(' ')[0] })}
-                    >
-                        <View style={styles.cardContent}>
-                            <View style={styles.cardHeader}>
-                                <Image source={LIFT_IMAGES[liftKey]} style={styles.liftImage} resizeMode="contain" />
-                                <View>
-                                    <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{workout.name}</Text>
-                                    <Text style={[styles.cardSubtitle, { color: theme.colors.subtext }]}>{liftSubtitle}</Text>
+                    return (
+                        <TouchableOpacity
+                            key={workout.id}
+                            style={[
+                                styles.card,
+                                { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
+                                theme.shadow,
+                                index === workouts.length - 1 && { marginRight: 40 } // Extra margin for last item
+                            ]}
+                            onPress={() => navigation.navigate('Workout', { workout, lift: workout.name.split(' ')[0] })}
+                        >
+                            <View style={styles.cardContent}>
+                                <View style={styles.cardHeader}>
+                                    <Image source={LIFT_IMAGES[liftKey]} style={styles.liftImage} resizeMode="contain" />
+                                    <View>
+                                        <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{workout.name}</Text>
+                                        <Text style={[styles.cardSubtitle, { color: theme.colors.subtext }]}>{liftSubtitle}</Text>
+                                        <Text style={[styles.oneRepMax, { color: theme.colors.primary }]}>
+                                            Est. 1RM: {oneRepMax}
+                                        </Text>
+                                    </View>
                                 </View>
                             </View>
-                            {isCompleted && <Text style={[styles.completedText, { color: theme.colors.success }]}>✓</Text>}
-                        </View>
-                    </TouchableOpacity>
-                );
-            })}
+                        </TouchableOpacity>
+                    );
+                })}
+            </ScrollView>
         </ScrollView>
     );
 };
@@ -132,6 +145,10 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         padding: 20,
+    },
+    horizontalList: {
+        paddingRight: 20,
+        paddingBottom: 20, // For shadow
     },
     header: {
         marginBottom: 20,
@@ -142,32 +159,36 @@ const styles = StyleSheet.create({
         letterSpacing: 0.5,
     },
     card: {
-        padding: 20,
+        padding: 16,
         borderRadius: 16,
-        marginBottom: 16,
+        marginBottom: 0, // No bottom margin needed for horizontal
+        marginRight: 16,
         borderWidth: 1,
+        width: 330, // Fixed width for horizontal scroll
     },
     cardContent: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
         alignItems: 'center',
     },
     cardHeader: {
-        flexDirection: 'row',
+        flexDirection: 'column',
         alignItems: 'center',
     },
     liftImage: {
-        width: 40,
-        height: 40,
-        marginRight: 15,
+        width: 116,
+        height: 116,
+        marginBottom: 12,
+        borderRadius: 20,
     },
     cardTitle: {
-        fontSize: 18,
+        fontSize: 20,
         fontWeight: 'bold',
+        textAlign: 'center',
     },
     cardSubtitle: {
         fontSize: 14,
         marginTop: 4,
+        textAlign: 'center',
     },
     completedText: {
         fontSize: 24,
@@ -184,5 +205,11 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 16,
         fontWeight: 'bold',
+    },
+    oneRepMax: {
+        fontSize: 12,
+        fontWeight: '600',
+        marginTop: 8,
+        textAlign: 'center',
     },
 });

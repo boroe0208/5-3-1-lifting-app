@@ -78,13 +78,13 @@ export class Calculator {
     static generateBBB(lift: string, tm: number, rounding: number = 2.5): AssistanceExercise[] {
         // BBB is 5 sets of 10 reps at 50% of TM
         const weight = this.roundToNearest(tm * 0.5, rounding);
-        return Array(5).fill(null).map((_, i) => ({
+        return [{
             name: `${lift} (BBB)`,
-            sets: 1,
+            sets: 5,
             reps: 10,
             weight: weight,
-            completed: false
-        }));
+            completed: Array(5).fill(false)
+        }];
     }
 
     static getWorkSets(trainingMax: number, week: number): WorkoutSet[] {

@@ -1,11 +1,15 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { WorkoutHistoryEntry } from '../core/types';
 import { useTheme } from '../core/theme';
 import { useUser } from '../core/UserContext';
 import { ProgressChart } from '../components/ProgressChart';
 import { CalendarView } from '../components/CalendarView';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import XLSX from 'xlsx';
+import { Ionicons } from '@expo/vector-icons';
 
 export const HistoryScreen = ({ navigation }: any) => {
     const { theme } = useTheme();
@@ -13,6 +17,73 @@ export const HistoryScreen = ({ navigation }: any) => {
     const [history, setHistory] = useState<WorkoutHistoryEntry[]>([]);
     const [unit, setUnit] = useState('lb');
     const [selectedDate, setSelectedDate] = useState<string | null>(new Date().toDateString());
+
+    const handleExport = async () => {
+        try {
+            if (history.length === 0) {
+                Alert.alert("No Data", "There is no workout history to export.");
+                return;
+            }
+
+            const data = history.map(entry => {
+                const row: any = {
+                    Date: new Date(entry.date).toLocaleDateString(),
+                    Time: new Date(entry.date).toLocaleTimeString(),
+                    Workout: entry.workoutName,
+                    Lift: entry.lift || '',
+                    Cycle: entry.cycle || '',
+                    Week: entry.week || '',
+                    Duration_Minutes: entry.duration ? Math.floor(entry.duration / 60) : '',
+                };
+
+                // Add Est 1RM columns
+                if (entry.estimatedOneRepMaxes) {
+                    Object.entries(entry.estimatedOneRepMaxes).forEach(([lift, weight]) => {
+                        row[`Est_1RM_${lift}`] = weight;
+                    });
+                }
+
+                return row;
+            });
+
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "History");
+
+            if (Platform.OS === 'web') {
+                const wbout = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+                const blob = new Blob([wbout], { type: "application/octet-stream" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "workout_history.xlsx";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                return;
+            }
+
+            const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+            // @ts-ignore
+            const uri = FileSystem.cacheDirectory + 'workout_history.xlsx';
+
+            await FileSystem.writeAsStringAsync(uri, wbout, {
+                // @ts-ignore
+                encoding: FileSystem.EncodingType.Base64
+            });
+
+            await Sharing.shareAsync(uri, {
+                mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                dialogTitle: 'Export Workout History',
+                UTI: 'com.microsoft.excel.xlsx'
+            });
+
+        } catch (error) {
+            console.error("Export failed:", error);
+            Alert.alert("Export Failed", "An error occurred while exporting data.");
+        }
+    };
 
     useFocusEffect(
         useCallback(() => {
@@ -22,12 +93,20 @@ export const HistoryScreen = ({ navigation }: any) => {
                 setHistory(sorted);
                 setUnit(profile.settings.unit);
             }
-            navigation.setOptions({
-                headerStyle: { backgroundColor: theme.colors.card },
-                headerTintColor: theme.colors.text,
-            });
-        }, [theme, profile])
+        }, [profile])
     );
+
+    React.useLayoutEffect(() => {
+        navigation.setOptions({
+            headerStyle: { backgroundColor: theme.colors.card },
+            headerTintColor: theme.colors.text,
+            headerRight: () => (
+                <TouchableOpacity onPress={handleExport} style={{ marginRight: 10 }}>
+                    <Ionicons name="share-outline" size={24} color={theme.colors.primary} />
+                </TouchableOpacity>
+            ),
+        });
+    }, [navigation, theme, history]); // Re-run when history changes to update the closure
 
     const handleEdit = (entry: WorkoutHistoryEntry) => {
         let lift = entry.lift;

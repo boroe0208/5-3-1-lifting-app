@@ -21,7 +21,6 @@ export const useWorkoutLogic = ({ route, navigation }: UseWorkoutLogicProps) => 
     const [totalTime, setTotalTime] = useState(0);
     const [isMainLiftExpanded, setIsMainLiftExpanded] = useState(true);
     const [isAssistanceExpanded, setIsAssistanceExpanded] = useState(false);
-    const [amrapReps, setAmrapReps] = useState('');
     const [repsToBeat, setRepsToBeat] = useState<number | null>(null);
 
     const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -46,21 +45,32 @@ export const useWorkoutLogic = ({ route, navigation }: UseWorkoutLogicProps) => 
                         assistanceWork: historyEntry.assistanceWork || [],
                         completed: true,
                     });
-                    setSets(historyEntry.sets);
-                    setAssistanceWork(historyEntry.assistanceWork || []);
-                    setTotalTime(historyEntry.duration || 0);
+                    // Ensure actualReps is set for all sets, defaulting to target reps if missing
+                    const initializedSets = historyEntry.sets.map(s => ({
+                        ...s,
+                        actualReps: s.actualReps ?? s.reps
+                    }));
+                    setSets(initializedSets);
 
-                    // Set AMRAP reps if exists
-                    const amrapSet = historyEntry.sets.find(s => s.isAmrap);
-                    if (amrapSet) {
-                        setAmrapReps(amrapSet.reps.toString());
-                    }
+                    // Initialize assistance actualReps
+                    const initializedAssistance = (historyEntry.assistanceWork || []).map(ex => ({
+                        ...ex,
+                        actualReps: ex.actualReps || Array(ex.sets).fill(ex.reps)
+                    }));
+                    setAssistanceWork(initializedAssistance);
+
+                    setTotalTime(historyEntry.duration || 0);
                 }
             } else if (route.params?.workout) {
                 // Load from passed workout param (from HomeScreen)
                 const paramWorkout = route.params.workout;
                 setWorkout(paramWorkout);
-                setSets(paramWorkout.sets);
+                // Initialize actualReps
+                const initializedSets = paramWorkout.sets.map((s: WorkoutSet) => ({
+                    ...s,
+                    actualReps: s.reps
+                }));
+                setSets(initializedSets);
 
                 // Calculate TM for assistance work
                 const liftKey = (lift || paramWorkout.lift).toLowerCase();
@@ -68,15 +78,19 @@ export const useWorkoutLogic = ({ route, navigation }: UseWorkoutLogicProps) => 
                 const calculatedTm = Calculator.roundToNearest(oneRepMax * profile.settings.trainingMaxPercentage, profile.settings.rounding);
 
                 // Generate Assistance Work
-                if (profile.assistanceTemplate === 'BoringButBig') {
+                if (profile.assistanceTemplate === 'BoringButBig' || !profile.assistanceTemplate) {
                     const bbbSets = Calculator.generateBBB(lift || paramWorkout.lift, calculatedTm, profile.settings.rounding);
-                    setAssistanceWork(bbbSets);
+                    // Initialize actualReps for BBB
+                    const initializedBBB = bbbSets.map(ex => ({
+                        ...ex,
+                        actualReps: Array(ex.sets).fill(ex.reps)
+                    }));
+                    setAssistanceWork(initializedBBB);
                 } else {
                     setAssistanceWork([]);
                 }
 
                 // Calculate Reps to Beat
-                // liftKey is already defined above
                 const max = profile.personalRecords?.[liftKey as keyof OneRepMaxes] || profile.oneRepMaxes[liftKey as keyof OneRepMaxes] || 0;
                 const targetSet = paramWorkout.sets.find((s: WorkoutSet) => s.isAmrap);
                 if (targetSet && max > 0) {
@@ -88,26 +102,40 @@ export const useWorkoutLogic = ({ route, navigation }: UseWorkoutLogicProps) => 
                 // New Workout (generated on the fly)
                 const generatedWorkout = Calculator.generateWorkout(lift, tm, week, cycle, profile.settings.rounding);
                 setWorkout(generatedWorkout);
-                setSets(generatedWorkout.sets);
+                // Initialize actualReps
+                const initializedSets = generatedWorkout.sets.map(s => ({
+                    ...s,
+                    actualReps: s.reps
+                }));
+                setSets(initializedSets);
 
                 // Generate Assistance Work
-                if (profile.assistanceTemplate === 'BoringButBig') {
+                const liftKey = lift.toLowerCase();
+                if (profile.customAssistance && profile.customAssistance[liftKey] && profile.customAssistance[liftKey].length > 0) {
+                    // Load saved custom assistance for this lift
+                    const savedAssistance = profile.customAssistance[liftKey].map(ex => ({
+                        ...ex,
+                        completed: Array.isArray(ex.completed) ? ex.completed : Array(ex.sets).fill(false),
+                        actualReps: ex.actualReps || Array(ex.sets).fill(ex.reps)
+                    }));
+                    setAssistanceWork(savedAssistance);
+                } else if (profile.assistanceTemplate === 'BoringButBig' || !profile.assistanceTemplate) {
                     const bbbSets = Calculator.generateBBB(lift, tm, profile.settings.rounding);
-                    setAssistanceWork(bbbSets);
+                    // Initialize actualReps for BBB
+                    const initializedBBB = bbbSets.map(ex => ({
+                        ...ex,
+                        actualReps: Array(ex.sets).fill(ex.reps)
+                    }));
+                    setAssistanceWork(initializedBBB);
                 } else {
                     setAssistanceWork([]);
                 }
 
                 // Calculate Reps to Beat
-                const liftKey = lift.toLowerCase();
                 const max = profile.personalRecords?.[liftKey as keyof OneRepMaxes] || profile.oneRepMaxes[liftKey as keyof OneRepMaxes] || 0;
                 const targetSet = generatedWorkout.sets.find(s => s.isAmrap);
                 if (targetSet && max > 0) {
                     const targetWeight = targetSet.weight;
-                    // Formula: Weight * (1 + Reps/30) > Max
-                    // Weight + Weight*Reps/30 > Max
-                    // Weight*Reps/30 > Max - Weight
-                    // Reps > (Max - Weight) * 30 / Weight
                     const beat = Math.ceil((max - targetWeight) * 30 / targetWeight);
                     setRepsToBeat(beat > 0 ? beat : null);
                 }
@@ -158,25 +186,128 @@ export const useWorkoutLogic = ({ route, navigation }: UseWorkoutLogicProps) => 
         }
     };
 
-    const toggleAssistanceComplete = (index: number) => {
+    const updateSetReps = (index: number, delta: number) => {
+        const newSets = [...sets];
+        const currentReps = newSets[index].actualReps ?? newSets[index].reps;
+        newSets[index].actualReps = Math.max(0, currentReps + delta);
+        setSets(newSets);
+    };
+
+    const changeSetReps = (index: number, text: string) => {
+        const newSets = [...sets];
+        const reps = parseInt(text);
+        if (!isNaN(reps)) {
+            newSets[index].actualReps = reps;
+        } else if (text === '') {
+            newSets[index].actualReps = 0; // Or handle empty state if preferred
+        }
+        setSets(newSets);
+    };
+
+    const toggleAssistanceSetComplete = (exerciseIndex: number, setIndex: number) => {
         const newAssistance = [...assistanceWork];
-        newAssistance[index].completed = !newAssistance[index].completed;
+        const exercise = newAssistance[exerciseIndex];
+        const newCompleted = [...exercise.completed];
+        newCompleted[setIndex] = !newCompleted[setIndex];
+        exercise.completed = newCompleted;
+        setAssistanceWork(newAssistance);
+    };
+
+    const addAssistanceExercise = (exerciseName: string) => {
+        const newExercise: AssistanceExercise = {
+            name: exerciseName,
+            sets: 3,
+            reps: 10,
+            completed: Array(3).fill(false),
+            actualReps: Array(3).fill(10)
+        };
+        setAssistanceWork([...assistanceWork, newExercise]);
+    };
+
+    const removeAssistanceExercise = (index: number) => {
+        const newAssistance = [...assistanceWork];
+        newAssistance.splice(index, 1);
+        setAssistanceWork(newAssistance);
+    };
+
+    const updateAssistanceSets = (index: number, delta: number) => {
+        const newAssistance = [...assistanceWork];
+        const currentSets = newAssistance[index].sets;
+        const newSets = Math.max(1, currentSets + delta);
+
+        newAssistance[index].sets = newSets;
+
+        // Resize completed array and actualReps array
+        if (newSets > currentSets) {
+            // Add new sets (default false and default reps)
+            newAssistance[index].completed = [
+                ...newAssistance[index].completed,
+                ...Array(newSets - currentSets).fill(false)
+            ];
+            newAssistance[index].actualReps = [
+                ...(newAssistance[index].actualReps || Array(currentSets).fill(newAssistance[index].reps)),
+                ...Array(newSets - currentSets).fill(newAssistance[index].reps)
+            ];
+        } else if (newSets < currentSets) {
+            // Remove sets
+            newAssistance[index].completed = newAssistance[index].completed.slice(0, newSets);
+            newAssistance[index].actualReps = (newAssistance[index].actualReps || Array(currentSets).fill(newAssistance[index].reps)).slice(0, newSets);
+        }
+
+        setAssistanceWork(newAssistance);
+    };
+
+    const updateAssistanceSetReps = (exerciseIndex: number, setIndex: number, delta: number) => {
+        const newAssistance = [...assistanceWork];
+        const exercise = newAssistance[exerciseIndex];
+        const currentReps = exercise.actualReps?.[setIndex] ?? exercise.reps;
+
+        if (!exercise.actualReps) {
+            exercise.actualReps = Array(exercise.sets).fill(exercise.reps);
+        }
+
+        exercise.actualReps[setIndex] = Math.max(0, currentReps + delta);
+        setAssistanceWork(newAssistance);
+    };
+
+    const changeAssistanceSetReps = (exerciseIndex: number, setIndex: number, text: string) => {
+        const newAssistance = [...assistanceWork];
+        const exercise = newAssistance[exerciseIndex];
+        const reps = parseInt(text);
+
+        if (!exercise.actualReps) {
+            exercise.actualReps = Array(exercise.sets).fill(exercise.reps);
+        }
+
+        if (!isNaN(reps)) {
+            exercise.actualReps[setIndex] = reps;
+        } else if (text === '') {
+            exercise.actualReps[setIndex] = 0;
+        }
         setAssistanceWork(newAssistance);
     };
 
     const finishWorkout = async () => {
         if (!workout || !profile) return;
 
-        // Validate AMRAP
-        const amrapSetIndex = sets.findIndex(s => s.isAmrap);
+        // Finalize sets - ensure actualReps is used
+        const finalizedSets = sets.map(s => ({
+            ...s,
+            reps: s.actualReps ?? s.reps, // Update the main reps field to what was actually done
+            completed: true // Mark all as completed on finish? Or just trust the user's checks? 
+            // Usually finishing a workout implies completion, but let's stick to the user's checks or just save state.
+            // The original code marked AMRAP as completed if valid.
+            // Let's mark all as completed for history purposes if that's the desired behavior, 
+            // or just save the state as is. The original code had `completed: true` in the history entry.
+        }));
+
+        // Validate AMRAP if needed, but now we have defaults. 
+        // If actualReps is 0 for AMRAP, maybe warn?
+        const amrapSetIndex = finalizedSets.findIndex(s => s.isAmrap);
         if (amrapSetIndex !== -1) {
-            const reps = parseInt(amrapReps);
-            if (isNaN(reps)) {
-                Alert.alert("Missing AMRAP", "Please enter reps for the AMRAP set.");
-                return;
+            if ((finalizedSets[amrapSetIndex].actualReps || 0) === 0) {
+                // Optional: Alert if 0 reps?
             }
-            sets[amrapSetIndex].reps = reps;
-            sets[amrapSetIndex].completed = true;
         }
 
         const isEditMode = mode === 'edit';
@@ -187,7 +318,7 @@ export const useWorkoutLogic = ({ route, navigation }: UseWorkoutLogicProps) => 
             lift: lift || workout.lift,
             cycle: cycle || workout.cycle,
             week: week || workout.week,
-            sets: sets,
+            sets: finalizedSets,
             assistanceWork: assistanceWork,
             completed: true,
             workoutId: workoutId || workout.id,
@@ -196,8 +327,8 @@ export const useWorkoutLogic = ({ route, navigation }: UseWorkoutLogicProps) => 
 
         // Calculate Est 1RM
         if (amrapSetIndex !== -1) {
-            const amrapSet = sets[amrapSetIndex];
-            const est1RM = Calculator.calculate1RM(amrapSet.weight, amrapSet.reps);
+            const amrapSet = finalizedSets[amrapSetIndex];
+            const est1RM = Calculator.calculate1RM(amrapSet.weight, amrapSet.reps); // reps is now actualReps
             newHistoryEntry.estimatedOneRepMaxes = {
                 ...newHistoryEntry.estimatedOneRepMaxes,
                 [lift.toLowerCase()]: est1RM
@@ -215,13 +346,13 @@ export const useWorkoutLogic = ({ route, navigation }: UseWorkoutLogicProps) => 
         }
 
         const newCompletedWorkouts = isEditMode ? profile.completedWorkouts : [...profile.completedWorkouts, workoutId || workout.id];
-        const newLiftProgress = { ...profile.liftProgress }; // Update if needed
+        const newLiftProgress = { ...profile.liftProgress };
         const newOneRepMaxes = { ...profile.oneRepMaxes };
         const newPersonalRecords = { ...(profile.personalRecords || profile.oneRepMaxes) };
 
         // Update Personal Records if new PR
         if (amrapSetIndex !== -1) {
-            const amrapSet = sets[amrapSetIndex];
+            const amrapSet = finalizedSets[amrapSetIndex];
             const est1RM = Calculator.calculate1RM(amrapSet.weight, amrapSet.reps);
             const liftKey = (lift || workout.lift).toLowerCase();
             const currentPR = newPersonalRecords[liftKey as keyof OneRepMaxes] || 0;
@@ -235,7 +366,6 @@ export const useWorkoutLogic = ({ route, navigation }: UseWorkoutLogicProps) => 
         // Progression Logic
         if (!isEditMode) {
             const liftKey = (lift || workout.lift).toLowerCase();
-            // Ensure liftProgress object exists
             if (!newLiftProgress[liftKey]) {
                 newLiftProgress[liftKey] = {
                     cycle: profile.currentCycle || 1,
@@ -251,10 +381,9 @@ export const useWorkoutLogic = ({ route, navigation }: UseWorkoutLogicProps) => 
                 nextWeek = 1;
                 nextCycle += 1;
 
-                // Increase TM for this lift
                 const isKg = profile.settings.unit === 'kg';
-                const upperInc = isKg ? 2.5 : 5; // Bench/OHP
-                const lowerInc = isKg ? 5 : 10;  // Squat/Deadlift
+                const upperInc = isKg ? 2.5 : 5;
+                const lowerInc = isKg ? 5 : 10;
 
                 const increment = (liftKey === 'bench' || liftKey === 'ohp') ? upperInc : lowerInc;
                 newOneRepMaxes[liftKey as keyof OneRepMaxes] = (newOneRepMaxes[liftKey as keyof OneRepMaxes] || 0) + increment;
@@ -277,10 +406,29 @@ export const useWorkoutLogic = ({ route, navigation }: UseWorkoutLogicProps) => 
             oneRepMaxes: newOneRepMaxes,
             personalRecords: newPersonalRecords,
             currentCycle: profile.currentCycle,
-            currentWeek: profile.currentWeek
+            currentWeek: profile.currentWeek,
+            customAssistance: {
+                ...profile.customAssistance,
+                [(lift || workout.lift).toLowerCase()]: assistanceWork
+            }
         });
 
         navigation.goBack();
+    };
+
+
+    const getPreviousHistory = (exerciseName: string) => {
+        if (!profile || !profile.history) return undefined;
+        const liftKey = (lift || workout?.lift || '').toLowerCase();
+        const historyEntry = profile.history.find(h =>
+            h.lift && h.lift.toLowerCase() === liftKey &&
+            h.assistanceWork && h.assistanceWork.some(ex => ex.name === exerciseName)
+        );
+
+        if (historyEntry && historyEntry.assistanceWork) {
+            return historyEntry.assistanceWork.find(ex => ex.name === exerciseName);
+        }
+        return undefined;
     };
 
     return {
@@ -294,13 +442,19 @@ export const useWorkoutLogic = ({ route, navigation }: UseWorkoutLogicProps) => 
         setIsMainLiftExpanded,
         isAssistanceExpanded,
         setIsAssistanceExpanded,
-        amrapReps,
-        setAmrapReps,
         repsToBeat,
         startTimer,
         stopTimer,
         toggleSetComplete,
-        toggleAssistanceComplete,
+        toggleAssistanceSetComplete,
+        addAssistanceExercise,
+        removeAssistanceExercise,
+        getPreviousHistory,
+        updateAssistanceSets,
+        updateSetReps,
+        changeSetReps,
+        updateAssistanceSetReps,
+        changeAssistanceSetReps,
         finishWorkout
     };
 };

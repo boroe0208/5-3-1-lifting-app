@@ -106,17 +106,19 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ history, onSelectDat
 const styles = StyleSheet.create({
     container: {
         borderRadius: 16,
-        padding: 16,
+        paddingVertical: 5,
+        paddingHorizontal: 10,
         marginBottom: 16,
+        marginHorizontal: 20,
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: 4,
     },
     monthTitle: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: 'bold',
     },
     navButton: {
@@ -128,12 +130,12 @@ const styles = StyleSheet.create({
     },
     weekDays: {
         flexDirection: 'row',
-        marginBottom: 8,
+        marginBottom: 4,
     },
     weekDayText: {
         flex: 1,
         textAlign: 'center',
-        fontSize: 12,
+        fontSize: 10,
         fontWeight: '600',
     },
     daysGrid: {
@@ -142,18 +144,18 @@ const styles = StyleSheet.create({
     },
     dayCell: {
         width: '14.28%', // 100% / 7
-        aspectRatio: 1,
+        height: 30,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 4,
+        marginBottom: 2,
     },
     dayText: {
-        fontSize: 14,
+        fontSize: 12,
     },
     workoutIndicator: {
         width: 4,
         height: 4,
         borderRadius: 2,
-        marginTop: 2,
+        marginTop: 1,
     },
 });

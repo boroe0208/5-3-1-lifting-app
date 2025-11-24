@@ -31,7 +31,8 @@ export interface AssistanceExercise {
     sets: number;
     reps: number;
     weight?: number;
-    completed?: boolean;
+    completed: boolean[];
+    actualReps?: number[];
 }
 
 export type AssistanceTemplate = 'None' | 'BoringButBig' | 'Custom';
