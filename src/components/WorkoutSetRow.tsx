@@ -36,7 +36,7 @@ export const WorkoutSetRow = ({
             >
                 <View style={styles.setMainInfo}>
                     <Text style={[styles.setText, { color: theme.colors.text }]}>
-                        {set.reps} @ {set.weight} {set.isAmrap ? '+' : ''}
+                        {set.weight} {unit === 'lb' ? 'lbs' : unit} X {set.reps} {set.isAmrap ? '+' : ''}
                     </Text>
                     {set.isAmrap && repsToBeat !== null && (
                         <Text style={[styles.repsToBeat, { color: theme.colors.success }]}>
@@ -145,6 +145,9 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: '600',
         lineHeight: 22,
+        textAlign: 'center',
+        textAlignVertical: 'center',
+        includeFontPadding: false,
     },
     input: {
         width: 40,

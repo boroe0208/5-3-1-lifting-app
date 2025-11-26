@@ -16,11 +16,13 @@ export const SettingsScreen = ({ navigation }: any) => {
     const { profile, saveProfile, resetProfile, clearProfile } = useUser();
     const [tmPercentage, setTmPercentage] = useState('90');
     const [rounding, setRounding] = useState('5');
+    const [unit, setUnit] = useState<'lb' | 'kg'>('lb');
 
     useEffect(() => {
         if (profile) {
             setTmPercentage(profile.settings.trainingMaxPercentage.toString());
             setRounding(profile.settings.rounding.toString());
+            setUnit(profile.settings.unit);
         }
         navigation.setOptions({
             headerStyle: { backgroundColor: theme.colors.card },
@@ -34,6 +36,7 @@ export const SettingsScreen = ({ navigation }: any) => {
             ...profile.settings,
             trainingMaxPercentage: parseFloat(tmPercentage),
             rounding: parseFloat(rounding),
+            unit: unit,
         };
         const newProfile = {
             ...profile,
@@ -189,6 +192,33 @@ export const SettingsScreen = ({ navigation }: any) => {
 
     return (
         <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+            <SettingsSection title="Units">
+                <Text style={[styles.label, { color: theme.colors.subtext }]}>Select your preferred weight unit</Text>
+                <View style={styles.row}>
+                    {['lb', 'kg'].map((u) => (
+                        <TouchableOpacity
+                            key={u}
+                            style={[
+                                styles.optionButton,
+                                unit === u && { backgroundColor: theme.colors.primary },
+                                { borderColor: theme.colors.border }
+                            ]}
+                            onPress={() => {
+                                setUnit(u as 'lb' | 'kg');
+                                handleSaveSettings({ ...profile?.settings, unit: u });
+                            }}
+                        >
+                            <Text style={[
+                                styles.optionText,
+                                unit === u ? { color: '#fff' } : { color: theme.colors.text }
+                            ]}>
+                                {u}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </SettingsSection>
+
             <SettingsSection title="Training Max">
                 <Text style={[styles.label, { color: theme.colors.subtext }]}>Percentage of 1RM to use as Training Max</Text>
                 <View style={styles.row}>

@@ -75,9 +75,11 @@ export class Calculator {
         };
     }
 
-    static generateBBB(lift: string, tm: number, rounding: number = 2.5): AssistanceExercise[] {
-        // BBB is 5 sets of 10 reps at 50% of TM
-        const weight = this.roundToNearest(tm * 0.5, rounding);
+    static generateBBB(lift: string, tm: number, week: number, rounding: number = 2.5): AssistanceExercise[] {
+        // BBB Standard: 50% of TM for all weeks
+        const percentage = 0.5;
+        const weight = this.roundToNearest(tm * percentage, rounding);
+
         return [{
             name: `${lift} (BBB)`,
             sets: 5,

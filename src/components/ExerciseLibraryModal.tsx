@@ -13,15 +13,25 @@ export const ExerciseLibraryModal = ({ visible, onClose, onSelect }: ExerciseLib
     const { theme } = useTheme();
     const [searchQuery, setSearchQuery] = useState('');
     const [customExercise, setCustomExercise] = useState('');
+    const [selectedBodyPart, setSelectedBodyPart] = useState<string | null>(null);
 
-    const filteredExercises = EXERCISE_LIBRARY.filter(ex =>
-        ex.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // Extract unique body parts
+    const bodyParts = React.useMemo(() => {
+        const parts = new Set(EXERCISE_LIBRARY.map(ex => ex.bodyPart).filter(Boolean));
+        return Array.from(parts).sort();
+    }, []);
+
+    const filteredExercises = EXERCISE_LIBRARY.filter(ex => {
+        const matchesSearch = ex.name.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesBodyPart = selectedBodyPart ? ex.bodyPart === selectedBodyPart : true;
+        return matchesSearch && matchesBodyPart;
+    });
 
     const handleSelect = (name: string) => {
         onSelect(name);
         onClose();
         setSearchQuery('');
+        setSelectedBodyPart(null);
     };
 
     const handleAddCustom = () => {
@@ -59,6 +69,39 @@ export const ExerciseLibraryModal = ({ visible, onClose, onSelect }: ExerciseLib
                         onChangeText={setSearchQuery}
                     />
 
+                    {/* Body Part Filters */}
+                    <View style={{ marginBottom: 12 }}>
+                        <FlatList
+                            horizontal
+                            data={['All', ...bodyParts]}
+                            keyExtractor={(item) => item}
+                            showsHorizontalScrollIndicator={false}
+                            renderItem={({ item }) => {
+                                const isSelected = (item === 'All' && !selectedBodyPart) || item === selectedBodyPart;
+                                return (
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.filterChip,
+                                            {
+                                                backgroundColor: isSelected ? theme.colors.primary : theme.colors.background,
+                                                borderColor: theme.colors.border,
+                                                borderWidth: 1
+                                            }
+                                        ]}
+                                        onPress={() => setSelectedBodyPart(item === 'All' ? null : item)}
+                                    >
+                                        <Text style={{
+                                            color: isSelected ? 'white' : theme.colors.text,
+                                            fontWeight: isSelected ? '600' : '400'
+                                        }}>
+                                            {item}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            }}
+                        />
+                    </View>
+
                     <FlatList
                         data={filteredExercises}
                         keyExtractor={(item) => item.name}
@@ -68,8 +111,12 @@ export const ExerciseLibraryModal = ({ visible, onClose, onSelect }: ExerciseLib
                                 style={[styles.exerciseItem, { borderBottomColor: theme.colors.border }]}
                                 onPress={() => handleSelect(item.name)}
                             >
-                                <Text style={[styles.exerciseName, { color: theme.colors.text }]}>{item.name}</Text>
-                                <Text style={[styles.exerciseCategory, { color: theme.colors.subtext }]}>{item.category}</Text>
+                                <View>
+                                    <Text style={[styles.exerciseName, { color: theme.colors.text }]}>{item.name}</Text>
+                                    <Text style={[styles.exerciseCategory, { color: theme.colors.subtext }]}>
+                                        {item.category} • {item.bodyPart || 'Other'}
+                                    </Text>
+                                </View>
                             </TouchableOpacity>
                         )}
                         ListEmptyComponent={() => (
@@ -177,5 +224,11 @@ const styles = StyleSheet.create({
         color: 'white',
         fontWeight: 'bold',
         fontSize: 16,
+    },
+    filterChip: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        marginRight: 8,
     },
 });

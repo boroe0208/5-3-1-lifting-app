@@ -15,8 +15,8 @@ const PLATE_CONFIG: Record<number, { color: string, height: number }> = {
     35: { color: '#FFD700', height: 70 }, // Gold/Yellow
     25: { color: '#008000', height: 60 }, // Green
     10: { color: '#000000', height: 45 }, // Black
-    5: { color: '#000000', height: 35 },  // Black
-    2.5: { color: '#FF0000', height: 30 }, // Red
+    5: { color: '#3a6566ff', height: 30 },  // Grey
+    2.5: { color: '#FF0000', height: 25 }, // Red
 
     // Kg specific
     20: { color: '#0047AB', height: 80 },

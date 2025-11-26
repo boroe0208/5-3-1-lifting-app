@@ -34,6 +34,7 @@ export interface AssistanceExercise {
     weight?: number;
     completed: boolean[];
     actualReps?: number[];
+    actualWeights?: number[];
 }
 
 export type AssistanceTemplate = 'None' | 'BoringButBig' | 'Custom';

@@ -79,7 +79,7 @@ export const useWorkoutLogic = ({ route, navigation }: UseWorkoutLogicProps) => 
 
                 // Generate Assistance Work
                 if (profile.assistanceTemplate === 'BoringButBig' || !profile.assistanceTemplate) {
-                    const bbbSets = Calculator.generateBBB(lift || paramWorkout.lift, calculatedTm, profile.settings.rounding);
+                    const bbbSets = Calculator.generateBBB(lift || paramWorkout.lift, calculatedTm, paramWorkout.week, profile.settings.rounding);
                     // Initialize actualReps for BBB
                     const initializedBBB = bbbSets.map(ex => ({
                         ...ex,
@@ -120,7 +120,7 @@ export const useWorkoutLogic = ({ route, navigation }: UseWorkoutLogicProps) => 
                     }));
                     setAssistanceWork(savedAssistance);
                 } else if (profile.assistanceTemplate === 'BoringButBig' || !profile.assistanceTemplate) {
-                    const bbbSets = Calculator.generateBBB(lift, tm, profile.settings.rounding);
+                    const bbbSets = Calculator.generateBBB(lift, tm, week, profile.settings.rounding);
                     // Initialize actualReps for BBB
                     const initializedBBB = bbbSets.map(ex => ({
                         ...ex,
@@ -214,12 +214,30 @@ export const useWorkoutLogic = ({ route, navigation }: UseWorkoutLogicProps) => 
     };
 
     const addAssistanceExercise = (exerciseName: string) => {
+        let lastWeight = 0;
+        let lastReps = 10;
+
+        if (profile && profile.history) {
+            const lastEntry = profile.history.find(h =>
+                h.assistanceWork && h.assistanceWork.some(ex => ex.name === exerciseName)
+            );
+            if (lastEntry && lastEntry.assistanceWork) {
+                const ex = lastEntry.assistanceWork.find(e => e.name === exerciseName);
+                if (ex) {
+                    lastWeight = ex.weight || 0;
+                    lastReps = ex.reps || 10;
+                }
+            }
+        }
+
         const newExercise: AssistanceExercise = {
             name: exerciseName,
             sets: 3,
-            reps: 10,
+            reps: lastReps,
+            weight: lastWeight,
             completed: Array(3).fill(false),
-            actualReps: Array(3).fill(10)
+            actualReps: Array(3).fill(lastReps),
+            actualWeights: Array(3).fill(lastWeight)
         };
         setAssistanceWork([...assistanceWork, newExercise]);
     };
@@ -248,10 +266,15 @@ export const useWorkoutLogic = ({ route, navigation }: UseWorkoutLogicProps) => 
                 ...(newAssistance[index].actualReps || Array(currentSets).fill(newAssistance[index].reps)),
                 ...Array(newSets - currentSets).fill(newAssistance[index].reps)
             ];
+            newAssistance[index].actualWeights = [
+                ...(newAssistance[index].actualWeights || Array(currentSets).fill(newAssistance[index].weight || 0)),
+                ...Array(newSets - currentSets).fill(newAssistance[index].weight || 0)
+            ];
         } else if (newSets < currentSets) {
             // Remove sets
             newAssistance[index].completed = newAssistance[index].completed.slice(0, newSets);
             newAssistance[index].actualReps = (newAssistance[index].actualReps || Array(currentSets).fill(newAssistance[index].reps)).slice(0, newSets);
+            newAssistance[index].actualWeights = (newAssistance[index].actualWeights || Array(currentSets).fill(newAssistance[index].weight || 0)).slice(0, newSets);
         }
 
         setAssistanceWork(newAssistance);
@@ -419,9 +442,8 @@ export const useWorkoutLogic = ({ route, navigation }: UseWorkoutLogicProps) => 
 
     const getPreviousHistory = (exerciseName: string) => {
         if (!profile || !profile.history) return undefined;
-        const liftKey = (lift || workout?.lift || '').toLowerCase();
+        // Search all history for the most recent occurrence of this exercise
         const historyEntry = profile.history.find(h =>
-            h.lift && h.lift.toLowerCase() === liftKey &&
             h.assistanceWork && h.assistanceWork.some(ex => ex.name === exerciseName)
         );
 
@@ -429,6 +451,36 @@ export const useWorkoutLogic = ({ route, navigation }: UseWorkoutLogicProps) => 
             return historyEntry.assistanceWork.find(ex => ex.name === exerciseName);
         }
         return undefined;
+    };
+
+    const changeAssistanceWeight = (index: number, text: string) => {
+        const newAssistance = [...assistanceWork];
+        const weight = parseFloat(text);
+        if (!isNaN(weight)) {
+            newAssistance[index].weight = weight;
+            // Also update all set weights if they are not set or if we want to sync them?
+            // Let's just update the default weight.
+        } else if (text === '') {
+            newAssistance[index].weight = undefined;
+        }
+        setAssistanceWork(newAssistance);
+    };
+
+    const changeAssistanceSetWeight = (exerciseIndex: number, setIndex: number, text: string) => {
+        const newAssistance = [...assistanceWork];
+        const exercise = newAssistance[exerciseIndex];
+        const weight = parseFloat(text);
+
+        if (!exercise.actualWeights) {
+            exercise.actualWeights = Array(exercise.sets).fill(exercise.weight || 0);
+        }
+
+        if (!isNaN(weight)) {
+            exercise.actualWeights[setIndex] = weight;
+        } else if (text === '') {
+            exercise.actualWeights[setIndex] = 0;
+        }
+        setAssistanceWork(newAssistance);
     };
 
     return {
@@ -455,6 +507,8 @@ export const useWorkoutLogic = ({ route, navigation }: UseWorkoutLogicProps) => 
         changeSetReps,
         updateAssistanceSetReps,
         changeAssistanceSetReps,
+        changeAssistanceWeight,
+        changeAssistanceSetWeight,
         finishWorkout
     };
 };

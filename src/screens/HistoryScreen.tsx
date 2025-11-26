@@ -194,7 +194,7 @@ export const HistoryScreen = ({ navigation }: any) => {
                             <Text style={[styles.assistanceHeader, { color: theme.colors.text }]}>Assistance Work:</Text>
                             {entry.assistanceWork.filter(ex => ex.completed).map((ex, i) => (
                                 <Text key={i} style={[styles.assistanceText, { color: theme.colors.subtext }]}>
-                                    • {ex.name}: {ex.sets}x{ex.reps} {ex.weight ? `@ ${ex.weight}${unit}` : ''}
+                                    • {ex.name}: {ex.sets} sets of {ex.weight ? `${ex.weight} ${unit === 'lb' ? 'lbs' : unit} X ` : ''}{ex.reps}
                                 </Text>
                             ))}
                         </View>

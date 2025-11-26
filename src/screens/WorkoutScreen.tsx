@@ -36,6 +36,8 @@ export const WorkoutScreen = ({ route, navigation }: any) => {
         changeSetReps,
         updateAssistanceSetReps,
         changeAssistanceSetReps,
+        changeAssistanceWeight,
+        changeAssistanceSetWeight,
         finishWorkout
     } = useWorkoutLogic({ route, navigation });
 
@@ -120,6 +122,8 @@ export const WorkoutScreen = ({ route, navigation }: any) => {
                             onUpdateSets={(delta) => updateAssistanceSets(index, delta)}
                             onUpdateReps={(setIndex, delta) => updateAssistanceSetReps(index, setIndex, delta)}
                             onChangeReps={(setIndex, text) => changeAssistanceSetReps(index, setIndex, text)}
+                            onChangeWeight={(text) => changeAssistanceWeight(index, text)}
+                            onChangeSetWeight={(setIndex, text) => changeAssistanceSetWeight(index, setIndex, text)}
                             previousData={getPreviousHistory(exercise.name)}
                         />
                     ))}

@@ -2,6 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { useTheme } from '../core/theme';
 import { AssistanceExercise } from '../core/types';
+import { useUser } from '../core/UserContext';
+import { PlateDisplay } from './PlateDisplay';
+import { EXERCISE_LIBRARY } from '../core/exerciseLibrary';
 
 interface AssistanceExerciseCardProps {
     exercise: AssistanceExercise;
@@ -10,6 +13,8 @@ interface AssistanceExerciseCardProps {
     onUpdateSets: (delta: number) => void;
     onUpdateReps: (setIndex: number, delta: number) => void;
     onChangeReps: (setIndex: number, text: string) => void;
+    onChangeWeight: (text: string) => void;
+    onChangeSetWeight: (setIndex: number, text: string) => void;
     previousData?: AssistanceExercise;
 }
 
@@ -20,18 +25,37 @@ export const AssistanceExerciseCard = ({
     onUpdateSets,
     onUpdateReps,
     onChangeReps,
+    onChangeWeight,
+    onChangeSetWeight,
     previousData
 }: AssistanceExerciseCardProps) => {
     const { theme } = useTheme();
+    const { profile } = useUser();
+    const unit = profile?.settings.unit || 'lb';
+    const unitLabel = unit === 'lb' ? 'lbs' : unit;
+    const [showPlates, setShowPlates] = React.useState(false);
+
+    // Determine if it's a barbell exercise
+    const isBarbell = React.useMemo(() => {
+        const libEntry = EXERCISE_LIBRARY.find(e => e.name === exercise.name);
+        if (libEntry?.equipment === 'Barbell') return true;
+
+        // Check for BBB or main lifts
+        const lowerName = exercise.name.toLowerCase();
+        if (lowerName.includes('(bbb)')) return true;
+        if (['squat', 'bench', 'deadlift', 'ohp', 'press'].some(lift => lowerName.includes(lift))) return true;
+
+        return false;
+    }, [exercise.name]);
 
     return (
         <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
             <View style={styles.header}>
-                <View>
+                <View style={{ flex: 1 }}>
                     <Text style={[styles.name, { color: theme.colors.text }]}>{exercise.name}</Text>
                     {previousData && (
                         <Text style={[styles.history, { color: theme.colors.subtext }]}>
-                            Last: {previousData.sets} x {previousData.reps} {previousData.weight ? `@ ${previousData.weight}` : ''}
+                            Last: {previousData.sets} sets of {previousData.weight ? `${previousData.weight} ${unitLabel} X ` : ''}{previousData.reps}
                         </Text>
                     )}
                 </View>
@@ -41,17 +65,33 @@ export const AssistanceExerciseCard = ({
             </View>
 
             <View style={styles.controls}>
-                <Text style={[styles.label, { color: theme.colors.text }]}>Sets:</Text>
-                <View style={styles.setsContainer}>
-                    <TouchableOpacity onPress={() => onUpdateSets(-1)} style={styles.setButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                        <Text style={[styles.setButtonText, { color: theme.colors.primary }]}>-</Text>
-                    </TouchableOpacity>
-                    <Text style={[styles.setCount, { color: theme.colors.text }]}>{exercise.sets}</Text>
-                    <TouchableOpacity onPress={() => onUpdateSets(1)} style={styles.setButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                        <Text style={[styles.setButtonText, { color: theme.colors.primary }]}>+</Text>
-                    </TouchableOpacity>
+                <View style={styles.weightContainer}>
+                    <Text style={[styles.label, { color: theme.colors.text, marginRight: 8 }]}>Target Weight:</Text>
+                    <TextInput
+                        style={[styles.weightInput, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.background }]}
+                        keyboardType="numeric"
+                        value={exercise.weight?.toString() || ''}
+                        onChangeText={onChangeWeight}
+                        placeholder="0"
+                        placeholderTextColor={theme.colors.subtext}
+                    />
+                    <Text style={[styles.unitLabel, { color: theme.colors.subtext }]}>{unitLabel}</Text>
                 </View>
+
+                {isBarbell && exercise.weight && exercise.weight > 0 && (
+                    <TouchableOpacity onPress={() => setShowPlates(!showPlates)}>
+                        <Text style={[styles.plateToggle, { color: theme.colors.primary }]}>
+                            {showPlates ? 'Hide Plates' : 'Show Plates'}
+                        </Text>
+                    </TouchableOpacity>
+                )}
             </View>
+
+            {showPlates && exercise.weight && (
+                <View style={{ marginBottom: 16 }}>
+                    <PlateDisplay weight={exercise.weight} unit={unit} />
+                </View>
+            )}
 
             <View style={styles.setList}>
                 {exercise.completed.map((isCompleted, index) => {
@@ -63,6 +103,18 @@ export const AssistanceExerciseCard = ({
                                     Set {index + 1}
                                 </Text>
                                 <View style={styles.repsContainer}>
+                                    {/* Weight Input per Set */}
+                                    <TextInput
+                                        style={[styles.input, { width: 50, color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.background }]}
+                                        keyboardType="numeric"
+                                        value={(exercise.actualWeights?.[index] ?? exercise.weight ?? 0).toString()}
+                                        onChangeText={(text) => onChangeSetWeight(index, text)}
+                                        selectTextOnFocus
+                                        placeholder="lbs"
+                                        placeholderTextColor={theme.colors.subtext}
+                                    />
+                                    <Text style={[styles.repsLabel, { color: theme.colors.subtext, marginRight: 8 }]}>{unitLabel}</Text>
+
                                     <TouchableOpacity
                                         style={[styles.repButton, { borderColor: theme.colors.border }]}
                                         onPress={() => onUpdateReps(index, -1)}
@@ -101,6 +153,23 @@ export const AssistanceExerciseCard = ({
                         </View>
                     );
                 })}
+            </View>
+
+            <View style={styles.footer}>
+                <TouchableOpacity
+                    style={[styles.addSetButton, { borderColor: theme.colors.primary }]}
+                    onPress={() => onUpdateSets(1)}
+                >
+                    <Text style={[styles.addSetButtonText, { color: theme.colors.primary }]}>+ Add Set</Text>
+                </TouchableOpacity>
+                {exercise.sets > 1 && (
+                    <TouchableOpacity
+                        style={[styles.removeSetButton]}
+                        onPress={() => onUpdateSets(-1)}
+                    >
+                        <Text style={[styles.removeSetButtonText, { color: theme.colors.danger }]}>Remove Set</Text>
+                    </TouchableOpacity>
+                )}
             </View>
         </View>
     );
@@ -206,6 +275,10 @@ const styles = StyleSheet.create({
     repButtonText: {
         fontSize: 18,
         fontWeight: 'bold',
+        textAlign: 'center',
+        textAlignVertical: 'center',
+        includeFontPadding: false,
+        lineHeight: 20,
     },
     input: {
         width: 40,
@@ -219,5 +292,52 @@ const styles = StyleSheet.create({
     repsLabel: {
         marginLeft: 8,
         fontSize: 14,
+    },
+    weightContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    weightInput: {
+        width: 60,
+        height: 36,
+        borderWidth: 1,
+        borderRadius: 8,
+        textAlign: 'center',
+        fontSize: 16,
+        padding: 0,
+    },
+    unitLabel: {
+        marginLeft: 8,
+        fontSize: 14,
+    },
+    plateToggle: {
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    footer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 16,
+        gap: 16,
+    },
+    addSetButton: {
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderStyle: 'dashed',
+    },
+    addSetButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    removeSetButton: {
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+    },
+    removeSetButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
     },
 });
